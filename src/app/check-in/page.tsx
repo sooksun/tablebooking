@@ -4,13 +4,14 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { checkIn, confirmFoodReceived } from '@/lib/api'
 import { CheckInTableGrid } from '@/components/CheckInTableGrid'
+import { FoodQueueList } from '@/components/FoodQueueList'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { ArrowLeft, Camera, Loader2, CheckCircle, XCircle, ScanLine, Map, UtensilsCrossed, LogOut } from 'lucide-react'
+import { ArrowLeft, Camera, Loader2, CheckCircle, XCircle, ScanLine, Map, UtensilsCrossed, ListOrdered, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { Table, Booking } from '@/types/database'
@@ -256,18 +257,23 @@ export default function CheckInPage() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4">
             <TabsTrigger value="scan" className="gap-1 sm:gap-2">
-              <ScanLine className="w-4 h-4" />
+              <ScanLine className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">สแกน QR / รหัส</span>
             </TabsTrigger>
             <TabsTrigger value="map-attendance" className="gap-1 sm:gap-2">
-              <Map className="w-4 h-4" />
+              <Map className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">แผนผัง เข้าร่วมงาน</span>
             </TabsTrigger>
             <TabsTrigger value="map-food" className="gap-1 sm:gap-2">
-              <UtensilsCrossed className="w-4 h-4" />
+              <UtensilsCrossed className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">แผนผัง รับอาหาร</span>
+            </TabsTrigger>
+            <TabsTrigger value="queue-food" className="gap-1 sm:gap-2">
+              <ListOrdered className="w-4 h-4 shrink-0" />
+              <span className="sm:hidden">คิว</span>
+              <span className="hidden sm:inline">คิวโต๊ะรับอาหาร</span>
             </TabsTrigger>
           </TabsList>
 
@@ -417,6 +423,15 @@ export default function CheckInPage() {
                 }}
               />
             </div>
+          </TabsContent>
+
+          <TabsContent value="queue-food" className="mt-0">
+            <FoodQueueList
+              onTableSelect={(t) => {
+                setSelectedTable(t)
+                setModalMapMode('food')
+              }}
+            />
           </TabsContent>
         </Tabs>
 

@@ -383,8 +383,19 @@ sudo ufw enable
 
 **Build ล้ม `Cannot find module '@tailwindcss/postcss'`**
 
-- Dockerfile ปรับแล้ว: builder ใช้ **`npm ci --include=dev`** เพื่อติดตั้ง devDependencies (Tailwind, PostCSS ฯลฯ) ตอน build
+- โปรเจกต์นี้มี **`@tailwindcss/postcss`** ใน `package.json` (devDependencies) แล้ว และ `postcss.config.mjs` ใช้ plugin นี้
+- สาเหตุใน Docker: `npm ci` ตอน `NODE_ENV=production` จะข้าม devDependencies → ติดตั้งไม่ครบ
+- **วิธีแก้ (ที่ใช้อยู่):** Dockerfile ใช้ **`npm ci --include=dev`** ใน builder เพื่อให้ติดตั้ง devDependencies ตอน build
 - ให้ `git pull` ดึงโค้ดล่าสุด แล้วรัน `docker compose build --no-cache` จากนั้น `docker compose up -d`
+
+**เช็คเพิ่ม (กันพังรอบสอง):** ดูว่า config เรียกใช้ package จริงหรือไม่
+
+```bash
+ls -la postcss.config.*
+cat postcss.config.* 2>/dev/null || true
+```
+
+ต้องมี `@tailwindcss/postcss` ใน `postcss.config.*` และมีใน `package.json` (devDependencies)
 
 **Build ยังไม่ผ่าน (cache เก่า)**
 
