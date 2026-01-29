@@ -1,0 +1,16 @@
+# รันบน Ubuntu: สร้าง .env จาก .env.example → docker compose up -d --build
+# Build args อ่านจาก .env (docker compose โหลด .env ให้อัตโนมัติ)
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_ADMIN_USERNAME: ${NEXT_PUBLIC_ADMIN_USERNAME:-admin}
+        NEXT_PUBLIC_ADMIN_PASSWORD: ${NEXT_PUBLIC_ADMIN_PASSWORD:-admin}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

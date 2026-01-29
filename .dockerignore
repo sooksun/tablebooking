@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Build
+.next
+out
+build
+
+# Misc
+.git
+.gitignore
+*.md
+.env*
+!.env.example
+
+# Debug
+*.log
+.DS_Store
+
+# IDE
+.vscode
+.idea
+
+# Docs / assets not needed for runtime
+*.xlsx
+*.pdf
+*.psd
+*.zip
