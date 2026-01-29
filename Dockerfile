@@ -6,20 +6,14 @@ RUN apk add --no-cache libc6-compat
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# ---- deps ----
-FROM base AS deps
-WORKDIR /app
-COPY package.json package-lock.json* ./
-# ต้องมี devDependencies (typescript ฯลฯ) ตอน build — runner ใช้แค่ standalone
-RUN npm ci
-
 # ---- builder ----
 FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json* ./
+RUN npm ci
+
 COPY . .
 
-# Build-time env (NEXT_PUBLIC_* baked into client bundle)
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_ADMIN_USERNAME

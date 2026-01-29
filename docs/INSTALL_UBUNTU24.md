@@ -378,8 +378,9 @@ sudo ufw enable
 
 **Build ล้ม `Cannot find module 'typescript'` / `Failed to transpile next.config.ts`**
 
-- แก้ใน Dockerfile แล้ว (deps ใช้ `npm ci` เต็ม ไม่ใช่ `--omit=dev`)
+- Dockerfile ปรับแล้ว: builder ติดตั้ง `npm ci` เอง (มี TypeScript) ไม่ copy จาก stage อื่น
 - ให้ `git pull` ดึงโค้ดล่าสุด แล้วรัน `docker compose up -d --build` ใหม่
+- **ถ้ายังไม่ผ่าน** (มักเพราะ Docker ใช้ cache เก่า): รัน **`docker compose build --no-cache`** แล้ว **`docker compose up -d`**
 
 **แอปไม่ขึ้น / เข้าไม่ได้**
 
