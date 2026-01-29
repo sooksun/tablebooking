@@ -10,7 +10,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 FROM base AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+# ต้องมี devDependencies (@tailwindcss/postcss, tailwindcss, typescript ฯลฯ) ตอน build
+RUN npm ci --include=dev
 
 COPY . .
 
