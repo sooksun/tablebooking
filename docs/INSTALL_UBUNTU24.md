@@ -378,9 +378,17 @@ sudo ufw enable
 
 **Build ล้ม `Cannot find module 'typescript'` / `Failed to transpile next.config.ts`**
 
-- Dockerfile ปรับแล้ว: builder ติดตั้ง `npm ci` เอง (มี TypeScript) ไม่ copy จาก stage อื่น
+- ใช้ `next.config.mjs` แทน `.ts` แล้ว — ไม่ต้องใช้ TypeScript ตอนโหลด config
 - ให้ `git pull` ดึงโค้ดล่าสุด แล้วรัน `docker compose up -d --build` ใหม่
-- **ถ้ายังไม่ผ่าน** (มักเพราะ Docker ใช้ cache เก่า): รัน **`docker compose build --no-cache`** แล้ว **`docker compose up -d`**
+
+**Build ล้ม `Cannot find module '@tailwindcss/postcss'`**
+
+- Dockerfile ปรับแล้ว: builder ใช้ **`npm ci --include=dev`** เพื่อติดตั้ง devDependencies (Tailwind, PostCSS ฯลฯ) ตอน build
+- ให้ `git pull` ดึงโค้ดล่าสุด แล้วรัน `docker compose build --no-cache` จากนั้น `docker compose up -d`
+
+**Build ยังไม่ผ่าน (cache เก่า)**
+
+- รัน **`docker compose build --no-cache`** แล้ว **`docker compose up -d`**
 
 **แอปไม่ขึ้น / เข้าไม่ได้**
 
