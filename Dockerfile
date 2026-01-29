@@ -10,7 +10,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+# ต้องมี devDependencies (typescript ฯลฯ) ตอน build — runner ใช้แค่ standalone
+RUN npm ci
 
 # ---- builder ----
 FROM base AS builder
