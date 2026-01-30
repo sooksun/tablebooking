@@ -131,7 +131,9 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
     return sortByNearest(remain, selectedTables)
   }, [availableTables, selectedTables])
 
+  // Sync bookTableOption กับ table prop ทุกครั้งที่ modal เปิด หรือ table เปลี่ยน
   useEffect(() => {
+    if (!open) return // ไม่ต้องทำอะไรถ้า modal ปิดอยู่
     if (table) {
       setBookTableOption('book')
       setTableCount(1)
@@ -140,7 +142,7 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
       setBookTableOption('none')
       setSelectedTables([])
     }
-  }, [table])
+  }, [open, table])
 
   useEffect(() => {
     if (!isBookingTable || !table || selectedTables.length === 0) return
