@@ -106,7 +106,8 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
   })
   const queryClient = useQueryClient()
 
-  const isBookingTable = bookTableOption === 'book'
+  // ถ้า table เป็น null = ไม่จองโต๊ะเสมอ (ไม่ต้องรอ useEffect)
+  const isBookingTable = bookTableOption === 'book' && table !== null
 
   const shirtTotal = shirtOrders.reduce((total, order) => {
     return total + (SHIRT_PRICES[order.type] * order.quantity)
@@ -812,6 +813,52 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
             )}
           </section>
 
+          {/* Section อัปโหลดสลิป - เมื่อไม่จองโต๊ะ: แสดงก่อน QR เพื่อให้เห็นบนมือถือโดยไม่ต้องเลื่อน */}
+          {!isBookingTable && (
+          <section
+            className="rounded-xl border-2 border-amber-200 bg-amber-50/80 p-4 space-y-2"
+            aria-labelledby="section-slip-reg"
+          >
+            <h2 id="section-slip-reg" className="text-base font-semibold text-gray-900">
+              {totalAmount > 0 ? 'แนบหลักฐานการโอน *' : 'แนบหลักฐานการโอน (ไม่บังคับ)'}
+            </h2>
+            <p className="text-sm text-gray-600">
+              {totalAmount > 0
+                ? 'กรุณาอัปโหลดสลิปแนบหลักฐานการโอนก่อนยืนยัน'
+                : 'อัปโหลดสลิปแนบหลักฐานการโอน (เมื่อมียอดชำระ)'}
+            </p>
+            <div className="border-2 border-dashed border-amber-300 rounded-lg p-4 text-center hover:border-amber-500 transition-colors bg-white">
+              <input
+                type="file"
+                id="slip-reg"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <label htmlFor="slip-reg" className="cursor-pointer block">
+                {slipPreview ? (
+                  <div className="relative">
+                    <Image
+                      src={slipPreview}
+                      alt="Slip preview"
+                      width={200}
+                      height={200}
+                      className="max-h-48 mx-auto rounded-lg object-contain"
+                    />
+                    <Badge variant="secondary" className="mt-2">คลิกเพื่อเปลี่ยนรูป</Badge>
+                  </div>
+                ) : (
+                  <div className="py-4">
+                    <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-500">คลิกเพื่ออัปโหลดสลิป</p>
+                    <p className="text-xs text-gray-400">รองรับ JPG, PNG, WebP ไม่เกิน 5 MB</p>
+                  </div>
+                )}
+              </label>
+            </div>
+          </section>
+          )}
+
           {/* Section 4: ข้อมูลการชำระเงิน - แสดงเสมอ (ซื้อเสื้อ/บริจาคอย่างเดียวก็เห็นยอด) */}
           <section
             className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3"
@@ -867,25 +914,16 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
             </div>
           </section>
 
-          {/* Section 5: อัปโหลดสลิป - แสดงเสมอทั้งจองโต๊ะและไม่จองโต๊ะ */}
+          {/* Section 5: อัปโหลดสลิป - เฉพาะเมื่อจองโต๊ะ (ไม่จองโต๊ะแสดงด้านบนก่อน QR แล้ว) */}
+          {isBookingTable && (
           <section
             className="rounded-xl border border-gray-200 bg-white p-4 space-y-2"
             aria-labelledby="section-slip"
           >
             <h2 id="section-slip" className="text-base font-semibold text-gray-900">
-              {isBookingTable
-                ? 'อัปโหลดสลิปการโอนเงิน *'
-                : totalAmount > 0
-                  ? 'แนบหลักฐานการโอน *'
-                  : 'แนบหลักฐานการโอน (ไม่บังคับ)'}
+              อัปโหลดสลิปการโอนเงิน *
             </h2>
-            <p className="text-sm text-gray-600">
-              {isBookingTable
-                ? 'อัปโหลดสลิปก่อนยืนยันการจอง'
-                : totalAmount > 0
-                  ? 'กรุณาอัปโหลดสลิปแนบหลักฐานการโอนก่อนยืนยัน'
-                  : 'อัปโหลดสลิปแนบหลักฐานการโอน (เมื่อมียอดชำระ)'}
-            </p>
+            <p className="text-sm text-gray-600">อัปโหลดสลิปก่อนยืนยันการจอง</p>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary transition-colors">
               <input
                 type="file"
@@ -894,7 +932,7 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
                 onChange={handleFileChange}
                 className="hidden"
               />
-              <label htmlFor="slip" className="cursor-pointer">
+              <label htmlFor="slip" className="cursor-pointer block">
                 {slipPreview ? (
                   <div className="relative">
                     <Image
@@ -904,9 +942,7 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
                       height={200}
                       className="max-h-48 mx-auto rounded-lg object-contain"
                     />
-                    <Badge variant="secondary" className="mt-2">
-                      คลิกเพื่อเปลี่ยนรูป
-                    </Badge>
+                    <Badge variant="secondary" className="mt-2">คลิกเพื่อเปลี่ยนรูป</Badge>
                   </div>
                 ) : (
                   <div className="py-4">
@@ -918,6 +954,7 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
               </label>
             </div>
           </section>
+          )}
 
           <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button
