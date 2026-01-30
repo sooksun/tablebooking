@@ -66,7 +66,11 @@ const SHIRT_PRICES = {
 
 const SHIRT_SIZES = ['SS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL']
 
-const SHIRT_SIZE_IMAGE = { src: '/size-t-shirt.jpg', alt: 'ตารางไซส์เสื้อ' }
+const SHIRT_IMAGES = [
+  { src: '/shirt1.jpg', alt: 'แบบเสื้อที่ 1' },
+  { src: '/shirt2.jpg', alt: 'แบบเสื้อที่ 2' },
+  { src: '/shirt3.jpg', alt: 'แบบเสื้อที่ 3' },
+]
 const SHIRT_DELIVERY_FEE = 50 // บาท ต่อ 1 คน เมื่อเลือกส่งตามที่อยู่
 
 export function BookingModal({ open, table, onClose }: BookingModalProps) {
@@ -83,6 +87,7 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
   const [currentShirtSize, setCurrentShirtSize] = useState('')
   const [currentShirtQuantity, setCurrentShirtQuantity] = useState(1)
   const [showShirtPreviewModal, setShowShirtPreviewModal] = useState(false)
+  const [selectedShirtImage, setSelectedShirtImage] = useState<number | null>(null)
   
   // การรับเสื้อ: รับหน้างาน | ส่งตามที่อยู่
   const [shirtDelivery, setShirtDelivery] = useState<'pickup' | 'delivery'>('pickup')
@@ -538,37 +543,50 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
               สั่งจองเสื้อที่ระลึก (ไม่บังคับ)
             </h2>
             
-            {/* Shirt Size Chart - คลิกเพื่อดูแบบเสื้อ (Pacdora) */}
-            <button
-              type="button"
-              onClick={() => setShowShirtPreviewModal(true)}
-              className="relative w-full aspect-[2/1] rounded-lg overflow-hidden border border-gray-200 bg-white cursor-pointer hover:ring-2 hover:ring-blue-500 hover:ring-offset-1 transition-shadow"
-            >
-              <Image
-                src={SHIRT_SIZE_IMAGE.src}
-                alt={SHIRT_SIZE_IMAGE.alt}
-                fill
-                className="object-contain"
-              />
-            </button>
-            {/* Modal แสดงรูปตารางไซส์เสื้อ ขนาดใหญ่ */}
-            <Dialog open={showShirtPreviewModal} onOpenChange={setShowShirtPreviewModal}>
+            {/* Shirt Images - คลิกเพื่อดูแบบเสื้อขยาย */}
+            <div className="grid grid-cols-3 gap-2">
+              {SHIRT_IMAGES.map((img, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setSelectedShirtImage(idx)
+                    setShowShirtPreviewModal(true)
+                  }}
+                  className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-white cursor-pointer hover:ring-2 hover:ring-blue-500 hover:ring-offset-1 transition-shadow"
+                >
+                  <Image
+                    src={img.src}
+                    alt={img.alt}
+                    fill
+                    className="object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+            {/* Modal แสดงรูปเสื้อขนาดใหญ่ */}
+            <Dialog open={showShirtPreviewModal} onOpenChange={(open) => {
+              setShowShirtPreviewModal(open)
+              if (!open) setSelectedShirtImage(null)
+            }}>
               <DialogContent className="w-full max-h-[92dvh] flex flex-col sm:max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>ตารางไซส์เสื้อที่ระลึก</DialogTitle>
+                  <DialogTitle>แบบเสื้อที่ระลึก</DialogTitle>
                   <DialogDescription>
-                    ตารางไซส์เสื้อคอกลมและเสื้อคอปก — SIZE ผู้ใหญ่
+                    {selectedShirtImage !== null ? SHIRT_IMAGES[selectedShirtImage].alt : 'คลิกเพื่อดูแบบเสื้อ'}
                   </DialogDescription>
                 </DialogHeader>
-                <div className="relative w-full min-h-[50vh] rounded-lg overflow-hidden border border-gray-200 bg-white">
-                  <Image
-                    src={SHIRT_SIZE_IMAGE.src}
-                    alt={SHIRT_SIZE_IMAGE.alt}
-                    fill
-                    className="object-contain"
-                    sizes="(max-width: 640px) 100vw, 672px"
-                  />
-                </div>
+                {selectedShirtImage !== null && (
+                  <div className="relative w-full min-h-[50vh] rounded-lg overflow-hidden border border-gray-200 bg-white">
+                    <Image
+                      src={SHIRT_IMAGES[selectedShirtImage].src}
+                      alt={SHIRT_IMAGES[selectedShirtImage].alt}
+                      fill
+                      className="object-contain"
+                      sizes="(max-width: 640px) 100vw, 672px"
+                    />
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
             <p className="text-xs text-gray-500 text-center">อยู่ระหว่างออกแบบสีและลาย</p>
@@ -816,52 +834,6 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
             )}
           </section>
 
-          {/* Section อัปโหลดสลิป - เมื่อไม่จองโต๊ะ: แสดงก่อน QR เพื่อให้เห็นบนมือถือโดยไม่ต้องเลื่อน */}
-          {!isBookingTable && (
-          <section
-            className="rounded-xl border-2 border-amber-200 bg-amber-50/80 p-4 space-y-2"
-            aria-labelledby="section-slip-reg"
-          >
-            <h2 id="section-slip-reg" className="text-base font-semibold text-gray-900">
-              {totalAmount > 0 ? 'แนบหลักฐานการโอน *' : 'แนบหลักฐานการโอน (ไม่บังคับ)'}
-            </h2>
-            <p className="text-sm text-gray-600">
-              {totalAmount > 0
-                ? 'กรุณาอัปโหลดสลิปแนบหลักฐานการโอนก่อนยืนยัน'
-                : 'อัปโหลดสลิปแนบหลักฐานการโอน (เมื่อมียอดชำระ)'}
-            </p>
-            <div className="border-2 border-dashed border-amber-300 rounded-lg p-4 text-center hover:border-amber-500 transition-colors bg-white">
-              <input
-                type="file"
-                id="slip-reg"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <label htmlFor="slip-reg" className="cursor-pointer block">
-                {slipPreview ? (
-                  <div className="relative">
-                    <Image
-                      src={slipPreview}
-                      alt="Slip preview"
-                      width={200}
-                      height={200}
-                      className="max-h-48 mx-auto rounded-lg object-contain"
-                    />
-                    <Badge variant="secondary" className="mt-2">คลิกเพื่อเปลี่ยนรูป</Badge>
-                  </div>
-                ) : (
-                  <div className="py-4">
-                    <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-500">คลิกเพื่ออัปโหลดสลิป</p>
-                    <p className="text-xs text-gray-400">รองรับ JPG, PNG, WebP ไม่เกิน 5 MB</p>
-                  </div>
-                )}
-              </label>
-            </div>
-          </section>
-          )}
-
           {/* Section 4: ข้อมูลการชำระเงิน - แสดงเสมอ (ซื้อเสื้อ/บริจาคอย่างเดียวก็เห็นยอด) */}
           <section
             className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3"
@@ -917,17 +889,26 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
             </div>
           </section>
 
-          {/* Section 5: อัปโหลดสลิป - เฉพาะเมื่อจองโต๊ะ (ไม่จองโต๊ะแสดงด้านบนก่อน QR แล้ว) */}
-          {isBookingTable && (
+          {/* Section 5: อัปโหลดสลิป */}
           <section
-            className="rounded-xl border border-gray-200 bg-white p-4 space-y-2"
+            className="rounded-xl border-2 border-amber-200 bg-amber-50/80 p-4 space-y-2"
             aria-labelledby="section-slip"
           >
             <h2 id="section-slip" className="text-base font-semibold text-gray-900">
-              อัปโหลดสลิปการโอนเงิน *
+              {isBookingTable
+                ? 'อัปโหลดสลิปการโอนเงิน *'
+                : totalAmount > 0
+                  ? 'แนบหลักฐานการโอน *'
+                  : 'แนบหลักฐานการโอน (ไม่บังคับ)'}
             </h2>
-            <p className="text-sm text-gray-600">อัปโหลดสลิปก่อนยืนยันการจอง</p>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary transition-colors">
+            <p className="text-sm text-gray-600">
+              {isBookingTable
+                ? 'อัปโหลดสลิปก่อนยืนยันการจอง'
+                : totalAmount > 0
+                  ? 'กรุณาอัปโหลดสลิปแนบหลักฐานการโอนก่อนยืนยัน'
+                  : 'อัปโหลดสลิปแนบหลักฐานการโอน (เมื่อมียอดชำระ)'}
+            </p>
+            <div className="border-2 border-dashed border-amber-300 rounded-lg p-4 text-center hover:border-amber-500 transition-colors bg-white">
               <input
                 type="file"
                 id="slip"
@@ -957,7 +938,6 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
               </label>
             </div>
           </section>
-          )}
 
           <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button
