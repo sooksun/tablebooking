@@ -64,7 +64,7 @@ const SHIRT_PRICES = {
   polo: 300,  // เสื้อคอปก
 }
 
-const SHIRT_SIZES = ['SS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL']
+const SHIRT_SIZES = ['SS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
 
 const SHIRT_IMAGES = [
   { src: '/shirt1.jpg', alt: 'แบบเสื้อที่ 1' },
