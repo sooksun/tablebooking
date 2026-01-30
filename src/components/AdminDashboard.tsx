@@ -12,8 +12,9 @@ import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import type { Booking, Registration } from '@/types/database'
 import { toast } from 'sonner'
-import { Loader2, Check, X, Eye, Clock, CheckCircle, XCircle, AlertCircle, Ban, MessageSquare, Save } from 'lucide-react'
+import { Loader2, Check, X, Eye, Clock, CheckCircle, XCircle, AlertCircle, Ban, MessageSquare, Save, ScanLine } from 'lucide-react'
 import Image from 'next/image'
+import { CheckInPanel } from '@/components/CheckInPanel'
 
 function getStatusBadge(status: string) {
   switch (status) {
@@ -203,16 +204,20 @@ export function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pending" className="gap-2">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+          <TabsTrigger value="pending" className="gap-1 sm:gap-2">
             <Clock className="w-4 h-4" />
-            รอตรวจสอบ ({pendingBookings?.length || 0})
+            <span className="hidden sm:inline">รอตรวจสอบ</span> ({pendingBookings?.length || 0})
           </TabsTrigger>
-          <TabsTrigger value="all" className="gap-2">
-            ทั้งหมด ({allBookings?.length || 0})
+          <TabsTrigger value="all" className="gap-1 sm:gap-2">
+            <span className="hidden sm:inline">ทั้งหมด</span> ({allBookings?.length || 0})
           </TabsTrigger>
-          <TabsTrigger value="registrations" className="gap-2">
-            ลงทะเบียนไม่จอง ({registrations.length})
+          <TabsTrigger value="registrations" className="gap-1 sm:gap-2">
+            <span className="hidden sm:inline">ไม่จองโต๊ะ</span> ({registrations.length})
+          </TabsTrigger>
+          <TabsTrigger value="checkin" className="gap-1 sm:gap-2">
+            <ScanLine className="w-4 h-4" />
+            <span className="hidden sm:inline">เช็คอิน</span>
           </TabsTrigger>
         </TabsList>
 
@@ -332,6 +337,10 @@ export function AdminDashboard() {
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="checkin" className="mt-4">
+          <CheckInPanel />
         </TabsContent>
       </Tabs>
 
