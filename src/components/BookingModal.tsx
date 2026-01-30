@@ -61,7 +61,7 @@ interface ShirtOrder {
 const BASE_PRICE = TABLE_BASE_PRICE
 const SHIRT_PRICES = {
   crew: 250,  // เสื้อคอกลม
-  polo: 350,  // เสื้อคอปก
+  polo: 300,  // เสื้อคอปก
 }
 
 const SHIRT_SIZES = ['SS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL']
