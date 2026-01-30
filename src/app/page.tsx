@@ -6,7 +6,7 @@ import { BookingModal } from '@/components/BookingModal'
 import type { Table } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Heart, Settings, Info, FileText, Ticket, ScanLine } from 'lucide-react'
+import { Heart, Settings, Info, FileText, Ticket } from 'lucide-react'
 import Link from 'next/link'
 import { TABLE_BASE_PRICE } from '@/lib/constants'
 
@@ -98,12 +98,6 @@ export default function HomePage() {
                 <Button variant="ghost" size="sm" className="h-10 min-w-10 px-2 sm:px-3 sm:min-w-0">
                   <Ticket className="w-4 h-4 sm:mr-1" />
                   <span className="hidden sm:inline">ดูตั๋วของฉัน</span>
-                </Button>
-              </Link>
-              <Link href="/check-in">
-                <Button variant="ghost" size="sm" className="h-10 min-w-10 px-2 sm:px-3 sm:min-w-0">
-                  <ScanLine className="w-4 h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">ลงทะเบียนเข้างาน</span>
                 </Button>
               </Link>
               <Link href="/detail">
