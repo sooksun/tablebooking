@@ -95,9 +95,10 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
   const [eDonationId, setEDonationId] = useState('')
 
   // การจองโต๊ะ: ไม่จอง | จอง X ตัว, รายการโต๊ะที่เลือก (ตัวที่ 1 จาก grid, ตัวที่ 2+ จาก dropdown)
-  const [bookTableOption, setBookTableOption] = useState<'none' | 'book'>('book')
+  // Initialize based on table prop - ถ้า table = null ให้เป็น 'none' ตั้งแต่แรก
+  const [bookTableOption, setBookTableOption] = useState<'none' | 'book'>(table ? 'book' : 'none')
   const [tableCount, setTableCount] = useState(1)
-  const [selectedTables, setSelectedTables] = useState<Table[]>([])
+  const [selectedTables, setSelectedTables] = useState<Table[]>(table ? [table] : [])
 
   const { data: allTables = [] } = useQuery({
     queryKey: ['tables'],

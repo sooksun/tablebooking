@@ -187,8 +187,9 @@ export default function HomePage() {
         </div>
       </main>
 
-      {/* Booking Modal */}
+      {/* Booking Modal - key forces re-mount when mode changes */}
       <BookingModal
+        key={selectedTable?.id ?? 'no-table'}
         open={showBookingModal}
         table={selectedTable}
         onClose={() => {
