@@ -1,5 +1,5 @@
 /**
- * Run reset_tables_117.sql against Supabase database (9 rows x 13 columns = 117 tables).
+ * Run reset_tables_9x13.sql against Supabase (9 rows x 13 columns = 117 tables).
  * Requires DATABASE_URL in .env.local (Supabase: Project Settings > Database > Connection string URI)
  */
 const fs = require('fs')
@@ -25,7 +25,7 @@ if (!DATABASE_URL) {
 async function main() {
   const { Client } = require('pg')
   const client = new Client({ connectionString: DATABASE_URL })
-  const sqlPath = path.join(__dirname, '..', 'reset_tables_117.sql')
+  const sqlPath = path.join(__dirname, '..', 'reset_tables_9x13.sql')
   let sql = fs.readFileSync(sqlPath, 'utf8')
   sql = sql
     .split('\n')
@@ -35,7 +35,7 @@ async function main() {
   try {
     await client.connect()
     await client.query(sql)
-    console.log('Database reset successfully. 117 tables (9x13) created.')
+    console.log('Database reset successfully. 117 tables (9 rows x 13 columns) created.')
   } catch (err) {
     console.error('Error:', err.message)
     process.exit(1)

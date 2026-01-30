@@ -161,6 +161,12 @@ npm run start  # Start production server
 npm run lint   # Run ESLint
 ```
 
+## คู่มือติดตั้งบน Ubuntu 24 (Docker)
+
+**คู่มือการติดตั้งแบบละเอียดบน Ubuntu 24.04** — ติดตั้ง**ใน Docker** ที่โฟลเดอร์ `/DATA/AppData/www/tablebooking` (ไม่ต้องติดตั้ง Node.js บนเครื่อง) → [docs/INSTALL_UBUNTU24.md](docs/INSTALL_UBUNTU24.md)
+
+---
+
 ## Docker (รันบน Ubuntu / Linux)
 
 แอปใช้ Next.js standalone ใน multi-stage Docker image
@@ -181,7 +187,7 @@ npm run lint   # Run ESLint
    ```
 
    Build args อ่านจาก `.env` (docker compose โหลดให้อัตโนมัติ)  
-   แอปจะ listen ที่พอร์ต **3000**
+   แอปจะ listen ที่พอร์ต **9900**
 
 3. หยุด:
 
@@ -192,7 +198,7 @@ npm run lint   # Run ESLint
 ### ไฟล์ที่เกี่ยวข้อง
 
 - `Dockerfile` — Multi-stage build (deps → builder → runner), Node 20 Alpine
-- `docker-compose.yml` — Service `app` build + expose 3000
+- `docker-compose.yml` — Service `app` build + expose พอร์ต 9900
 - `.dockerignore` — ไม่ส่ง `node_modules`, `.next`, `.env*` 等 เข้า build context
 - `.env.example` — ตัวอย่างตัวแปรที่ต้องใช้
 

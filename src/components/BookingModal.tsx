@@ -66,14 +66,7 @@ const SHIRT_PRICES = {
 
 const SHIRT_SIZES = ['SS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL']
 
-const SHIRT_IMAGES = [
-  { src: '/shirt1.png', alt: 'เสื้อคอกลม ด้านหน้า' },
-  { src: '/shirt11.png', alt: 'เสื้อคอกลม ด้านหลัง' },
-  { src: '/shirt2.png', alt: 'เสื้อคอปก ด้านหน้า' },
-  { src: '/shirt21.png', alt: 'เสื้อคอปก ด้านหลัง' },
-]
-
-const SHIRT_PREVIEW_LINK = 'https://www.pacdora.com/share?filter_url=psfyic7f7g'
+const SHIRT_SIZE_IMAGE = { src: '/size-t-shirt.jpg', alt: 'ตารางไซส์เสื้อ' }
 const SHIRT_DELIVERY_FEE = 50 // บาท ต่อ 1 คน เมื่อเลือกส่งตามที่อยู่
 
 export function BookingModal({ open, table, onClose }: BookingModalProps) {
@@ -360,6 +353,10 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
     }
 
     if (!isBookingTable) {
+      if (totalAmount > 0 && !slipFile) {
+        toast.error('กรุณาอัปโหลดสลิปแนบหลักฐานการโอนก่อนยืนยัน')
+        return
+      }
       const payload = {
         user_name: userName.trim(),
         phone: phone.replace(/\D/g, ''),
@@ -537,52 +534,36 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
               สั่งจองเสื้อที่ระลึก (ไม่บังคับ)
             </h2>
             
-            {/* Shirt Thumbnails - คลิกเพื่อดูแบบเสื้อ (Pacdora) */}
-            <div className="grid grid-cols-4 gap-2">
-              {SHIRT_IMAGES.map((img, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setShowShirtPreviewModal(true)}
-                  className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-white cursor-pointer hover:ring-2 hover:ring-blue-500 hover:ring-offset-1 transition-shadow"
-                >
-                  <Image
-                    src={img.src}
-                    alt={img.alt}
-                    fill
-                    className="object-cover"
-                  />
-                </button>
-              ))}
-            </div>
-            {/* Modal แสดง Pacdora ใน iframe (Popup ในหน้าเดียวกัน) */}
+            {/* Shirt Size Chart - คลิกเพื่อดูแบบเสื้อ (Pacdora) */}
+            <button
+              type="button"
+              onClick={() => setShowShirtPreviewModal(true)}
+              className="relative w-full aspect-[2/1] rounded-lg overflow-hidden border border-gray-200 bg-white cursor-pointer hover:ring-2 hover:ring-blue-500 hover:ring-offset-1 transition-shadow"
+            >
+              <Image
+                src={SHIRT_SIZE_IMAGE.src}
+                alt={SHIRT_SIZE_IMAGE.alt}
+                fill
+                className="object-contain"
+              />
+            </button>
+            {/* Modal แสดงรูปตารางไซส์เสื้อ ขนาดใหญ่ */}
             <Dialog open={showShirtPreviewModal} onOpenChange={setShowShirtPreviewModal}>
-              <DialogContent className="w-full max-h-[92dvh] flex flex-col sm:max-w-4xl">
+              <DialogContent className="w-full max-h-[92dvh] flex flex-col sm:max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>ดูแบบเสื้อที่ระลึก</DialogTitle>
+                  <DialogTitle>ตารางไซส์เสื้อที่ระลึก</DialogTitle>
                   <DialogDescription>
-                    แบบเสื้อ 3D บน Pacdora — ถ้าไม่แสดงให้กดปุ่มเปิดในแท็บใหม่
+                    ตารางไซส์เสื้อคอกลมและเสื้อคอปก — SIZE ผู้ใหญ่
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-3 py-2 flex-1 min-h-0 flex flex-col">
-                  <div className="relative flex-1 min-h-[60vh] rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
-                    <iframe
-                      src={SHIRT_PREVIEW_LINK}
-                      title="Pacdora - ดูแบบเสื้อ 3D"
-                      className="absolute inset-0 w-full h-full"
-                      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                      allow="fullscreen"
-                    />
-                  </div>
-                  <Button type="button" variant="outline" className="w-full" asChild>
-                    <a
-                      href={SHIRT_PREVIEW_LINK}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      เปิดในแท็บใหม่ (ถ้าไม่แสดงด้านบน)
-                    </a>
-                  </Button>
+                <div className="relative w-full min-h-[50vh] rounded-lg overflow-hidden border border-gray-200 bg-white">
+                  <Image
+                    src={SHIRT_SIZE_IMAGE.src}
+                    alt={SHIRT_SIZE_IMAGE.alt}
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 640px) 100vw, 672px"
+                  />
                 </div>
               </DialogContent>
             </Dialog>
@@ -886,15 +867,25 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
             </div>
           </section>
 
-          {/* Section 5: อัปโหลดสลิป - เฉพาะเมื่อจองโต๊ะ */}
-          {isBookingTable && (
+          {/* Section 5: อัปโหลดสลิป - แสดงเสมอทั้งจองโต๊ะและไม่จองโต๊ะ */}
           <section
             className="rounded-xl border border-gray-200 bg-white p-4 space-y-2"
             aria-labelledby="section-slip"
           >
             <h2 id="section-slip" className="text-base font-semibold text-gray-900">
-              อัปโหลดสลิปการโอนเงิน *
+              {isBookingTable
+                ? 'อัปโหลดสลิปการโอนเงิน *'
+                : totalAmount > 0
+                  ? 'แนบหลักฐานการโอน *'
+                  : 'แนบหลักฐานการโอน (ไม่บังคับ)'}
             </h2>
+            <p className="text-sm text-gray-600">
+              {isBookingTable
+                ? 'อัปโหลดสลิปก่อนยืนยันการจอง'
+                : totalAmount > 0
+                  ? 'กรุณาอัปโหลดสลิปแนบหลักฐานการโอนก่อนยืนยัน'
+                  : 'อัปโหลดสลิปแนบหลักฐานการโอน (เมื่อมียอดชำระ)'}
+            </p>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary transition-colors">
               <input
                 type="file"
@@ -927,7 +918,6 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
               </label>
             </div>
           </section>
-          )}
 
           <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button
@@ -941,7 +931,14 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
             <Button
               type="submit"
               className="min-h-12 flex-1 text-base"
-              disabled={(isBookingTable && (bookingMutation.isPending || isUploading)) || (!isBookingTable && (registrationMutation.isPending || isUploading))}
+              disabled={
+                (isBookingTable && (bookingMutation.isPending || isUploading || !slipFile)) ||
+                (!isBookingTable && (
+                  registrationMutation.isPending ||
+                  isUploading ||
+                  (totalAmount > 0 && !slipFile)
+                ))
+              }
             >
               {(isBookingTable && (bookingMutation.isPending || isUploading)) || (!isBookingTable && (registrationMutation.isPending || isUploading)) ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

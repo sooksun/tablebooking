@@ -369,6 +369,9 @@ export default function CheckInPage() {
               </p>
               <div className="flex flex-wrap gap-2 text-xs">
                 <span className="inline-flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-yellow-500" /> รออนุมัติ
+                </span>
+                <span className="inline-flex items-center gap-1">
                   <span className="w-3 h-3 rounded-full bg-amber-500" /> จองแล้ว
                 </span>
                 <span className="inline-flex items-center gap-1">
@@ -400,6 +403,9 @@ export default function CheckInPage() {
                 → จ่ายอาหารให้คนยกไปโต๊ะ (จ่ายได้เฉพาะโต๊ะที่<strong>เข้างานแล้ว</strong>)
               </p>
               <div className="flex flex-wrap gap-2 text-xs">
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-yellow-500" /> รออนุมัติ
+                </span>
                 <span className="inline-flex items-center gap-1">
                   <span className="w-3 h-3 rounded-full bg-amber-500" /> จองแล้ว
                 </span>

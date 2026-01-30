@@ -12,5 +12,5 @@ services:
         NEXT_PUBLIC_ADMIN_USERNAME: ${NEXT_PUBLIC_ADMIN_USERNAME:-admin}
         NEXT_PUBLIC_ADMIN_PASSWORD: ${NEXT_PUBLIC_ADMIN_PASSWORD:-admin}
     ports:
-      - "3000:3000"
+      - "9900:3000"
     restart: unless-stopped
