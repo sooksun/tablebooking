@@ -6,7 +6,7 @@ import { BookingModal } from '@/components/BookingModal'
 import type { Table } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Heart, Settings, Info, FileText, Ticket } from 'lucide-react'
+import { Heart, Settings, Info, FileText, Ticket, Shirt } from 'lucide-react'
 import Link from 'next/link'
 import { TABLE_BASE_PRICE } from '@/lib/constants'
 
@@ -94,6 +94,18 @@ export default function HomePage() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-10 min-w-10 px-2 sm:px-3 sm:min-w-0"
+                onClick={() => {
+                  setSelectedTable(null)
+                  setShowBookingModal(true)
+                }}
+              >
+                <Shirt className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">จองเสื้อ</span>
+              </Button>
               <Link href="/ticket">
                 <Button variant="ghost" size="sm" className="h-10 min-w-10 px-2 sm:px-3 sm:min-w-0">
                   <Ticket className="w-4 h-4 sm:mr-1" />
@@ -129,18 +141,6 @@ export default function HomePage() {
             <h2 className="w-full sm:w-auto text-center text-base sm:text-lg font-semibold text-gray-800">
               ผังโต๊ะ (117 โต๊ะ)
             </h2>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              onClick={() => {
-                setSelectedTable(null)
-                setShowBookingModal(true)
-              }}
-            >
-              จองเสื้อ
-            </Button>
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6 w-full sm:w-auto">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-full bg-green-500 border-2 border-white shadow" />
