@@ -3,16 +3,20 @@
 import { useState, useEffect } from 'react'
 import { TableGrid } from '@/components/TableGrid'
 import { BookingModal } from '@/components/BookingModal'
-import type { Table } from '@/types/database'
+import { EditBookingModal } from '@/components/EditBookingModal'
+import type { Table, Booking } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Heart, Settings, Info, FileText, Ticket, Shirt } from 'lucide-react'
 import Link from 'next/link'
 import { TABLE_BASE_PRICE } from '@/lib/constants'
 
+type TableWithBooking = Table & { current_booking?: Booking }
+
 export default function HomePage() {
-  const [selectedTable, setSelectedTable] = useState<Table | null>(null)
+  const [selectedTable, setSelectedTable] = useState<TableWithBooking | null>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [showInfoPopup, setShowInfoPopup] = useState(true)
   const [isDesktop, setIsDesktop] = useState(false)
 
@@ -161,16 +165,28 @@ export default function HomePage() {
               <TableGrid
                 fitViewport
                 onTableSelect={(t) => {
-                  setSelectedTable(t)
-                  setShowBookingModal(true)
+                  const table = t as TableWithBooking
+                  setSelectedTable(table)
+                  // ถ้าโต๊ะมีการจองรออนุมัติ → เปิด EditModal
+                  if (table.current_booking?.status === 'PENDING_VERIFICATION') {
+                    setShowEditModal(true)
+                  } else {
+                    setShowBookingModal(true)
+                  }
                 }}
               />
             </div>
           ) : (
             <TableGrid
               onTableSelect={(t) => {
-                setSelectedTable(t)
-                setShowBookingModal(true)
+                const table = t as TableWithBooking
+                setSelectedTable(table)
+                // ถ้าโต๊ะมีการจองรออนุมัติ → เปิด EditModal
+                if (table.current_booking?.status === 'PENDING_VERIFICATION') {
+                  setShowEditModal(true)
+                } else {
+                  setShowBookingModal(true)
+                }
               }}
             />
           )}
@@ -184,6 +200,16 @@ export default function HomePage() {
         table={selectedTable}
         onClose={() => {
           setShowBookingModal(false)
+          setSelectedTable(null)
+        }}
+      />
+
+      {/* Edit Booking Modal - for pending bookings */}
+      <EditBookingModal
+        open={showEditModal}
+        table={selectedTable}
+        onClose={() => {
+          setShowEditModal(false)
           setSelectedTable(null)
         }}
       />
