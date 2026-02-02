@@ -118,10 +118,6 @@ export default function HomePage() {
                   <span className="hidden sm:inline">รายละเอียดของงาน</span>
                 </Button>
               </Link>
-              <Button variant="ghost" size="sm" className="h-10 min-w-10 px-2 sm:px-3 sm:min-w-0" onClick={() => setShowInfoPopup(true)}>
-                <Info className="w-4 h-4 sm:mr-1" />
-                <span className="hidden sm:inline">วิธีจอง</span>
-              </Button>
               <Link href="/admin">
                 <Button variant="outline" size="sm" className="h-10 min-w-10 px-2 sm:px-3 sm:min-w-0">
                   <Settings className="w-4 h-4 sm:mr-2" />
