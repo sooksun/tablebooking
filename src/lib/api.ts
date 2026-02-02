@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import { TABLE_BASE_PRICE } from './constants'
-import type { Table, Booking, BookingStatus, Registration, RegistrationShirtOrder } from '@/types/database'
+import type { Table, Booking, BookingStatus, Registration, RegistrationShirtOrder, BookingShirtOrder } from '@/types/database'
 
 // Fetch all tables with their booking counts and current booking info
 export async function fetchTables(): Promise<(Table & { current_booking?: Booking })[]> {
@@ -86,14 +86,26 @@ export async function fetchBookingsByPhone(phone: string): Promise<Booking[]> {
   return (data || []) as Booking[]
 }
 
-// Create a new booking (1 table = 1 person only)
-export async function createBooking(
-  tableId: number,
-  userName: string,
-  phone: string,
-  amount: number,
+export interface CreateBookingInput {
+  tableId: number
+  userName: string
+  phone: string
+  amount: number
   slipUrl: string
-): Promise<Booking> {
+  donation?: number
+  shirtOrders?: BookingShirtOrder[]
+  shirtDelivery?: 'pickup' | 'delivery'
+  shirtDeliveryAddress?: string
+  eDonationWant?: boolean
+  eDonationName?: string
+  eDonationAddress?: string
+  eDonationId?: string
+}
+
+// Create a new booking (1 table = 1 person only)
+export async function createBooking(input: CreateBookingInput): Promise<Booking> {
+  const { tableId, userName, phone, amount, slipUrl } = input
+  
   if (amount < TABLE_BASE_PRICE) {
     throw new Error('ยอดชำระไม่ถูกต้อง')
   }
@@ -127,6 +139,14 @@ export async function createBooking(
       slip_url: slipUrl,
       status: 'PENDING_VERIFICATION',
       queue_position: 1,
+      donation: input.donation || 0,
+      shirt_orders: input.shirtOrders || [],
+      shirt_delivery: input.shirtDelivery || null,
+      shirt_delivery_address: input.shirtDeliveryAddress?.trim() || null,
+      e_donation_want: input.eDonationWant || false,
+      e_donation_name: input.eDonationWant ? (input.eDonationName?.trim() || null) : null,
+      e_donation_address: input.eDonationWant ? (input.eDonationAddress?.trim() || null) : null,
+      e_donation_id: input.eDonationWant ? (input.eDonationId?.trim() || null) : null,
     })
     .select()
     .single()
@@ -241,6 +261,42 @@ export async function updateBookingMemo(bookingId: string, memo: string): Promis
     .from('bookings')
     .update({ memo: memo || null })
     .eq('id', bookingId)
+
+  if (error) throw error
+}
+
+export interface UpdateBookingDetailsInput {
+  bookingId: string
+  userName?: string
+  phone?: string
+  donation?: number
+  shirtOrders?: BookingShirtOrder[]
+  shirtDelivery?: 'pickup' | 'delivery' | null
+  shirtDeliveryAddress?: string | null
+  eDonationWant?: boolean
+  eDonationName?: string | null
+  eDonationAddress?: string | null
+  eDonationId?: string | null
+}
+
+export async function updateBookingDetails(input: UpdateBookingDetailsInput): Promise<void> {
+  const updateData: Record<string, unknown> = {}
+  
+  if (input.userName !== undefined) updateData.user_name = input.userName.trim()
+  if (input.phone !== undefined) updateData.phone = input.phone.replace(/\D/g, '')
+  if (input.donation !== undefined) updateData.donation = Math.max(0, input.donation)
+  if (input.shirtOrders !== undefined) updateData.shirt_orders = input.shirtOrders
+  if (input.shirtDelivery !== undefined) updateData.shirt_delivery = input.shirtDelivery
+  if (input.shirtDeliveryAddress !== undefined) updateData.shirt_delivery_address = input.shirtDeliveryAddress?.trim() || null
+  if (input.eDonationWant !== undefined) updateData.e_donation_want = input.eDonationWant
+  if (input.eDonationName !== undefined) updateData.e_donation_name = input.eDonationName?.trim() || null
+  if (input.eDonationAddress !== undefined) updateData.e_donation_address = input.eDonationAddress?.trim() || null
+  if (input.eDonationId !== undefined) updateData.e_donation_id = input.eDonationId?.trim() || null
+
+  const { error } = await supabase
+    .from('bookings')
+    .update(updateData)
+    .eq('id', input.bookingId)
 
   if (error) throw error
 }

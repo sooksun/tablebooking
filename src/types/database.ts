@@ -15,6 +15,12 @@ export interface Table {
   created_at: string
 }
 
+export interface BookingShirtOrder {
+  type: 'crew' | 'polo'
+  size: string
+  quantity: number
+}
+
 export interface Booking {
   id: string
   table_id: number
@@ -28,6 +34,15 @@ export interface Booking {
   created_at: string
   checked_in_at: string | null
   food_received_at: string | null
+  // Extended fields
+  donation: number
+  shirt_orders: BookingShirtOrder[]
+  shirt_delivery: 'pickup' | 'delivery' | null
+  shirt_delivery_address: string | null
+  e_donation_want: boolean
+  e_donation_name: string | null
+  e_donation_address: string | null
+  e_donation_id: string | null
   // Joined data
   table?: Table
 }

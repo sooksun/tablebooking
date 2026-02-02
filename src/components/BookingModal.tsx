@@ -238,9 +238,31 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
       const firstAmount = BASE_PRICE + extra
       const restAmount = BASE_PRICE
 
-      await createBooking(selectedTables[0].id, name, phoneNorm, firstAmount, slipUrl)
+      // First table includes all extra info
+      await createBooking({
+        tableId: selectedTables[0].id,
+        userName: name,
+        phone: phoneNorm,
+        amount: firstAmount,
+        slipUrl,
+        donation: Math.max(0, donation),
+        shirtOrders: shirtOrders.map(o => ({ type: o.type, size: o.size, quantity: o.quantity })),
+        shirtDelivery: shirtOrders.length > 0 ? shirtDelivery : undefined,
+        shirtDeliveryAddress: shirtDelivery === 'delivery' ? shirtDeliveryAddress : undefined,
+        eDonationWant: wantEDonation === 'yes',
+        eDonationName: eDonationName,
+        eDonationAddress: eDonationAddress,
+        eDonationId: eDonationId,
+      })
+      // Additional tables only have base price
       for (let i = 1; i < selectedTables.length; i++) {
-        await createBooking(selectedTables[i].id, name, phoneNorm, restAmount, slipUrl)
+        await createBooking({
+          tableId: selectedTables[i].id,
+          userName: name,
+          phone: phoneNorm,
+          amount: restAmount,
+          slipUrl,
+        })
       }
     },
     onSuccess: () => {
