@@ -213,9 +213,7 @@ cd tablebooking
 โฟลเดอร์แอป: **`/DATA/AppData/www/tablebooking`**
 
 cd /DATA/AppData/www/tablebooking
-git pull
-docker compose build --no-cache
-docker compose up -d
+ฟฟห
 
 docker compose ps
 docker compose logs --tail 50

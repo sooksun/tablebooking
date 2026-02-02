@@ -139,7 +139,7 @@ export default function HomePage() {
                 setShowBookingModal(true)
               }}
             >
-              ลงทะเบียน (ไม่จองโต๊ะ)
+              จองเสื้อ
             </Button>
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6 w-full sm:w-auto">
               <div className="flex items-center gap-2">
