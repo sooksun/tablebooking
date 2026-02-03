@@ -86,6 +86,9 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
   const [eDonationAddress, setEDonationAddress] = useState('')
   const [eDonationId, setEDonationId] = useState('')
 
+  // Slip preview modal
+  const [showSlipPreview, setShowSlipPreview] = useState(false)
+
   const queryClient = useQueryClient()
   const currentBooking = table?.current_booking
 
@@ -720,16 +723,44 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
             {booking.slip_url && (
               <div className="bg-white p-4 rounded-lg border border-gray-200">
                 <p className="text-sm text-gray-500 mb-2">สลิปที่อัปโหลดไว้</p>
-                <div className="relative w-48 h-48 mx-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowSlipPreview(true)}
+                  className="relative w-48 h-48 mx-auto block cursor-pointer hover:ring-2 hover:ring-blue-500 hover:ring-offset-2 rounded-lg transition-all"
+                >
                   <Image
                     src={booking.slip_url}
                     alt="สลิปการโอนเงิน"
                     fill
                     className="object-contain rounded-lg"
                   />
-                </div>
+                </button>
+                <p className="text-xs text-center text-gray-400 mt-1">คลิกเพื่อขยาย</p>
               </div>
             )}
+
+            {/* Slip Preview Modal */}
+            <Dialog open={showSlipPreview} onOpenChange={setShowSlipPreview}>
+              <DialogContent className="w-full max-h-[92dvh] flex flex-col sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>สลิปการโอนเงิน</DialogTitle>
+                  <DialogDescription>
+                    โต๊ะ {table?.label} - {booking.user_name}
+                  </DialogDescription>
+                </DialogHeader>
+                {booking.slip_url && (
+                  <div className="relative w-full min-h-[60vh] rounded-lg overflow-hidden border border-gray-200 bg-white">
+                    <Image
+                      src={booking.slip_url}
+                      alt="สลิปการโอนเงิน"
+                      fill
+                      className="object-contain"
+                      sizes="(max-width: 640px) 100vw, 672px"
+                    />
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </section>
 
           {/* Buttons */}
