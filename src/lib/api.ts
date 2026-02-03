@@ -100,6 +100,7 @@ export interface CreateBookingInput {
   eDonationName?: string
   eDonationAddress?: string
   eDonationId?: string
+  bookingGroupId?: string  // UUID เชื่อมโยงโต๊ะที่จองพร้อมกัน
 }
 
 // Create a new booking (1 table = 1 person only)
@@ -147,6 +148,7 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
       e_donation_name: input.eDonationWant ? (input.eDonationName?.trim() || null) : null,
       e_donation_address: input.eDonationWant ? (input.eDonationAddress?.trim() || null) : null,
       e_donation_id: input.eDonationWant ? (input.eDonationId?.trim() || null) : null,
+      booking_group_id: input.bookingGroupId || null,
     })
     .select()
     .single()
@@ -299,6 +301,26 @@ export async function updateBookingDetails(input: UpdateBookingDetailsInput): Pr
     .eq('id', input.bookingId)
 
   if (error) throw error
+}
+
+// Fetch all bookings in the same group (for multi-table bookings)
+export async function fetchBookingGroup(bookingGroupId: string): Promise<Booking[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*, table:tables(*)')
+    .eq('booking_group_id', bookingGroupId)
+    .order('amount', { ascending: false }) // Primary booking (with extras) has highest amount
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  return (data || []) as Booking[]
+}
+
+// Fetch the primary booking in a group (the one with shirt/donation data)
+export async function fetchPrimaryBookingInGroup(bookingGroupId: string): Promise<Booking | null> {
+  const bookings = await fetchBookingGroup(bookingGroupId)
+  // The first booking (highest amount) is the primary one with all extra info
+  return bookings.length > 0 ? bookings[0] : null
 }
 
 // Check-in: ลงทะเบียนเข้างาน (สแกน QR บนตั๋ว)

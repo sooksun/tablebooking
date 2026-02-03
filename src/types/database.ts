@@ -43,6 +43,8 @@ export interface Booking {
   e_donation_name: string | null
   e_donation_address: string | null
   e_donation_id: string | null
+  // Group ID for multi-table bookings
+  booking_group_id: string | null
   // Joined data
   table?: Table
 }

@@ -238,7 +238,10 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
       const firstAmount = BASE_PRICE + extra
       const restAmount = BASE_PRICE
 
-      // First table includes all extra info
+      // Generate unique group ID for multi-table bookings
+      const bookingGroupId = selectedTables.length > 1 ? crypto.randomUUID() : undefined
+
+      // First table includes all extra info (shirt, donation, e-donation)
       await createBooking({
         tableId: selectedTables[0].id,
         userName: name,
@@ -253,8 +256,9 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
         eDonationName: eDonationName,
         eDonationAddress: eDonationAddress,
         eDonationId: eDonationId,
+        bookingGroupId,
       })
-      // Additional tables only have base price
+      // Additional tables - link with same group ID, no extra info (stored in first table)
       for (let i = 1; i < selectedTables.length; i++) {
         await createBooking({
           tableId: selectedTables[i].id,
@@ -262,6 +266,7 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
           phone: phoneNorm,
           amount: restAmount,
           slipUrl,
+          bookingGroupId,
         })
       }
     },

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { updateBookingDetails } from '@/lib/api'
+import { updateBookingDetails, fetchBookingGroup } from '@/lib/api'
 import { TABLE_BASE_PRICE } from '@/lib/constants'
 import type { Table, Booking, BookingShirtOrder } from '@/types/database'
 import { toast } from 'sonner'
@@ -87,7 +87,28 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
   const [eDonationId, setEDonationId] = useState('')
 
   const queryClient = useQueryClient()
-  const booking = table?.current_booking
+  const currentBooking = table?.current_booking
+
+  // Fetch all bookings in the same group (for multi-table bookings)
+  const { data: groupBookings = [] } = useQuery({
+    queryKey: ['bookingGroup', currentBooking?.booking_group_id],
+    queryFn: () => fetchBookingGroup(currentBooking!.booking_group_id!),
+    enabled: open && !!currentBooking?.booking_group_id,
+  })
+
+  // Determine the primary booking (first in group with highest amount = has all extra info)
+  // If no group, use current booking
+  const primaryBooking = currentBooking?.booking_group_id && groupBookings.length > 0
+    ? groupBookings[0]
+    : currentBooking
+
+  // All tables in group (for display)
+  const allGroupTables = groupBookings.length > 0
+    ? groupBookings.map(b => b.table?.label || `โต๊ะ ${b.table_id}`).filter(Boolean)
+    : table ? [table.label] : []
+
+  // Use primary booking for editing (it has all the extra info)
+  const booking = primaryBooking
 
   // Calculate totals
   const shirtTotal = shirtOrders.reduce((total, order) => {
@@ -95,30 +116,29 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
   }, 0)
   const totalShirtQuantity = shirtOrders.reduce((total, order) => total + order.quantity, 0)
   const deliveryFee = shirtOrders.length > 0 && shirtDelivery === 'delivery' ? SHIRT_DELIVERY_FEE : 0
-  const tableAmount = BASE_PRICE
+  const tableCount = groupBookings.length > 0 ? groupBookings.length : 1
+  const tableAmount = BASE_PRICE * tableCount
   const totalAmount = tableAmount + Math.max(0, donation) + shirtTotal + deliveryFee
 
   useEffect(() => {
     setAuthenticated(getStoredAuth())
   }, [])
 
-  // Load booking data when modal opens
+  // Load booking data when modal opens (use primary booking data)
   useEffect(() => {
     if (booking && open) {
-      // Debug: Log booking data to check if extended fields are present
-      console.log('[EditBookingModal] Booking data:', {
+      // Debug: Log booking data
+      console.log('[EditBookingModal] Primary booking data:', {
         id: booking.id,
+        booking_group_id: booking.booking_group_id,
         user_name: booking.user_name,
         phone: booking.phone,
         amount: booking.amount,
         donation: booking.donation,
         shirt_orders: booking.shirt_orders,
         shirt_delivery: booking.shirt_delivery,
-        shirt_delivery_address: booking.shirt_delivery_address,
         e_donation_want: booking.e_donation_want,
-        e_donation_name: booking.e_donation_name,
-        e_donation_address: booking.e_donation_address,
-        e_donation_id: booking.e_donation_id,
+        groupTablesCount: groupBookings.length,
       })
 
       setUserName(booking.user_name || '')
@@ -144,7 +164,7 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
         setShirtOrders([])
       }
     }
-  }, [booking, open])
+  }, [booking, open, groupBookings.length])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -643,13 +663,25 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
 
           {/* Section 4: โต๊ะที่จอง */}
           <section className="rounded-xl border border-gray-200 bg-amber-50/80 p-4 space-y-4">
-            <h2 className="text-base font-semibold text-gray-900">โต๊ะที่จอง</h2>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-amber-100 text-sm font-medium">
-                {table?.label}
-              </span>
-              <span className="text-sm text-gray-500">(ราคา {BASE_PRICE.toLocaleString()} บาท)</span>
+            <h2 className="text-base font-semibold text-gray-900">
+              โต๊ะที่จอง {tableCount > 1 && `(${tableCount} ตัว)`}
+            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              {allGroupTables.length > 0 ? (
+                allGroupTables.map((label, idx) => (
+                  <span key={idx} className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-amber-100 text-sm font-medium">
+                    {label}
+                  </span>
+                ))
+              ) : (
+                <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-amber-100 text-sm font-medium">
+                  {table?.label}
+                </span>
+              )}
             </div>
+            <p className="text-sm text-gray-500">
+              ราคาโต๊ะ: {BASE_PRICE.toLocaleString()} บาท × {tableCount} ตัว = {tableAmount.toLocaleString()} บาท
+            </p>
           </section>
 
           {/* Section 5: ข้อมูลการชำระเงิน */}
@@ -657,7 +689,7 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
             <h2 className="text-base font-semibold text-gray-900">ข้อมูลการชำระเงิน</h2>
 
             <div className="flex justify-between text-sm">
-              <span>ราคาโต๊ะ</span>
+              <span>ราคาโต๊ะ{tableCount > 1 ? ` (${tableCount} ตัว)` : ''}</span>
               <span>{tableAmount.toLocaleString()} บาท</span>
             </div>
             {shirtTotal > 0 && (
