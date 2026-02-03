@@ -9,11 +9,11 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { updateBookingDetails, fetchBookingGroup, uploadSlip, updateBookingSlip } from '@/lib/api'
+import { updateBookingDetails, fetchBookingGroup, uploadSlip, updateBookingSlip, fetchAvailableTables, changeBookingTable } from '@/lib/api'
 import { TABLE_BASE_PRICE } from '@/lib/constants'
 import type { Table, Booking, BookingShirtOrder } from '@/types/database'
 import { toast } from 'sonner'
-import { Loader2, Lock, Shirt, Plus, X, Upload } from 'lucide-react'
+import { Loader2, Lock, Shirt, Plus, X, Upload, RefreshCw, Check } from 'lucide-react'
 import Image from 'next/image'
 
 const AUTH_KEY = 'edit_booking_authenticated'
@@ -94,6 +94,10 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
   const [newSlipPreview, setNewSlipPreview] = useState<string | null>(null)
   const [isUploadingSlip, setIsUploadingSlip] = useState(false)
 
+  // Table change
+  const [showTableChange, setShowTableChange] = useState(false)
+  const [selectedNewTableId, setSelectedNewTableId] = useState<number | null>(null)
+
   const queryClient = useQueryClient()
   const currentBooking = table?.current_booking
 
@@ -102,6 +106,13 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
     queryKey: ['bookingGroup', currentBooking?.booking_group_id],
     queryFn: () => fetchBookingGroup(currentBooking!.booking_group_id!),
     enabled: open && !!currentBooking?.booking_group_id,
+  })
+
+  // Fetch available tables for table change
+  const { data: availableTables = [], isLoading: isLoadingTables } = useQuery({
+    queryKey: ['availableTables'],
+    queryFn: fetchAvailableTables,
+    enabled: open && showTableChange,
   })
 
   // Determine the primary booking (first in group with highest amount = has all extra info)
@@ -213,7 +224,12 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      if (!booking) throw new Error('No booking')
+      if (!booking || !table) throw new Error('No booking')
+      
+      // Change table if a new table is selected
+      if (selectedNewTableId && selectedNewTableId !== table.id) {
+        await changeBookingTable(booking.id, table.id, selectedNewTableId)
+      }
       
       // Upload new slip if provided
       let newSlipUrl: string | undefined
@@ -253,9 +269,12 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
       queryClient.invalidateQueries({ queryKey: ['tables'] })
       queryClient.invalidateQueries({ queryKey: ['bookings'] })
       queryClient.invalidateQueries({ queryKey: ['bookingGroup'] })
+      queryClient.invalidateQueries({ queryKey: ['availableTables'] })
       setNewSlipFile(null)
       setNewSlipPreview(null)
       setIsUploadingSlip(false)
+      setShowTableChange(false)
+      setSelectedNewTableId(null)
       onClose()
     },
     onError: (error: Error) => {
@@ -718,11 +737,38 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
 
           {/* Section 4: โต๊ะที่จอง */}
           <section className="rounded-xl border border-gray-200 bg-amber-50/80 p-4 space-y-4">
-            <h2 className="text-base font-semibold text-gray-900">
-              โต๊ะที่จอง {tableCount > 1 && `(${tableCount} ตัว)`}
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-gray-900">
+                โต๊ะที่จอง {tableCount > 1 && `(${tableCount} ตัว)`}
+              </h2>
+              {/* Only allow table change for single table bookings */}
+              {tableCount === 1 && !showTableChange && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTableChange(true)}
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  เปลี่ยนโต๊ะ
+                </Button>
+              )}
+            </div>
+
+            {/* Current table(s) */}
             <div className="flex flex-wrap items-center gap-2">
-              {allGroupTables.length > 0 ? (
+              {selectedNewTableId ? (
+                <>
+                  <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-gray-200 text-sm font-medium line-through text-gray-500">
+                    {table?.label}
+                  </span>
+                  <span className="text-gray-400">→</span>
+                  <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-green-100 text-sm font-medium text-green-700">
+                    <Check className="w-4 h-4" />
+                    {availableTables.find(t => t.id === selectedNewTableId)?.label}
+                  </span>
+                </>
+              ) : allGroupTables.length > 0 ? (
                 allGroupTables.map((label, idx) => (
                   <span key={idx} className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-amber-100 text-sm font-medium">
                     {label}
@@ -734,6 +780,59 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
                 </span>
               )}
             </div>
+
+            {/* Table change UI */}
+            {showTableChange && (
+              <div className="border-2 border-dashed border-amber-300 rounded-lg p-4 space-y-3 bg-white">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">เลือกโต๊ะใหม่</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowTableChange(false)
+                      setSelectedNewTableId(null)
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                {isLoadingTables ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    <span className="ml-2 text-sm text-gray-500">กำลังโหลด...</span>
+                  </div>
+                ) : availableTables.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">ไม่มีโต๊ะว่าง</p>
+                ) : (
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto">
+                    {availableTables.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSelectedNewTableId(t.id)}
+                        className={`p-2 text-sm font-medium rounded-lg border-2 transition-all ${
+                          selectedNewTableId === t.id
+                            ? 'border-green-500 bg-green-50 text-green-700'
+                            : 'border-gray-200 bg-white hover:border-amber-400 hover:bg-amber-50'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {selectedNewTableId && (
+                  <p className="text-sm text-green-600 font-medium">
+                    ✓ เลือกโต๊ะใหม่: {availableTables.find(t => t.id === selectedNewTableId)?.label}
+                  </p>
+                )}
+              </div>
+            )}
+
             <p className="text-sm text-gray-500">
               ราคาโต๊ะ: {BASE_PRICE.toLocaleString()} บาท × {tableCount} ตัว = {tableAmount.toLocaleString()} บาท
             </p>

@@ -343,6 +343,49 @@ export async function updateGroupBookingsSlip(bookingGroupId: string, slipUrl: s
   if (error) throw error
 }
 
+// Change booking table (release old table, reserve new table)
+export async function changeBookingTable(
+  bookingId: string,
+  oldTableId: number,
+  newTableId: number
+): Promise<void> {
+  // 1. Update booking to new table
+  const { error: bookingError } = await supabase
+    .from('bookings')
+    .update({ table_id: newTableId })
+    .eq('id', bookingId)
+
+  if (bookingError) throw bookingError
+
+  // 2. Release old table (set to AVAILABLE)
+  const { error: oldTableError } = await supabase
+    .from('tables')
+    .update({ status: 'AVAILABLE', current_queue_count: 0 })
+    .eq('id', oldTableId)
+
+  if (oldTableError) throw oldTableError
+
+  // 3. Reserve new table (set to PENDING)
+  const { error: newTableError } = await supabase
+    .from('tables')
+    .update({ status: 'PENDING', current_queue_count: 1 })
+    .eq('id', newTableId)
+
+  if (newTableError) throw newTableError
+}
+
+// Fetch available tables (for table change)
+export async function fetchAvailableTables(): Promise<Table[]> {
+  const { data, error } = await supabase
+    .from('tables')
+    .select('*')
+    .eq('status', 'AVAILABLE')
+    .order('label', { ascending: true })
+
+  if (error) throw error
+  return data as Table[]
+}
+
 // Check-in: ลงทะเบียนเข้างาน (สแกน QR บนตั๋ว)
 export async function checkIn(bookingId: string): Promise<Booking> {
   const { data: booking, error: fetchError } = await supabase
