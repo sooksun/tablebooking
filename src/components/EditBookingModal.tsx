@@ -94,9 +94,10 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
   const [newSlipPreview, setNewSlipPreview] = useState<string | null>(null)
   const [isUploadingSlip, setIsUploadingSlip] = useState(false)
 
-  // Table change
+  // Table change - support changing the specific table that opened the modal
   const [showTableChange, setShowTableChange] = useState(false)
   const [selectedNewTableId, setSelectedNewTableId] = useState<number | null>(null)
+  const [tableToChange, setTableToChange] = useState<{ id: number; label: string } | null>(null)
 
   const queryClient = useQueryClient()
   const currentBooking = table?.current_booking
@@ -227,8 +228,17 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
       if (!booking || !table) throw new Error('No booking')
       
       // Change table if a new table is selected
-      if (selectedNewTableId && selectedNewTableId !== table.id) {
-        await changeBookingTable(booking.id, table.id, selectedNewTableId)
+      if (selectedNewTableId && tableToChange && selectedNewTableId !== tableToChange.id) {
+        // For multi-table booking, find the booking for the specific table being changed
+        if (groupBookings.length > 0 && tableToChange.id !== table.id) {
+          const bookingToChange = groupBookings.find(b => b.table_id === tableToChange.id)
+          if (bookingToChange) {
+            await changeBookingTable(bookingToChange.id, tableToChange.id, selectedNewTableId)
+          }
+        } else {
+          // Single table or changing the primary table
+          await changeBookingTable(booking.id, tableToChange.id, selectedNewTableId)
+        }
       }
       
       // Upload new slip if provided
@@ -275,6 +285,7 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
       setIsUploadingSlip(false)
       setShowTableChange(false)
       setSelectedNewTableId(null)
+      setTableToChange(null)
       onClose()
     },
     onError: (error: Error) => {
@@ -737,55 +748,129 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
 
           {/* Section 4: โต๊ะที่จอง */}
           <section className="rounded-xl border border-gray-200 bg-amber-50/80 p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-gray-900">
-                โต๊ะที่จอง {tableCount > 1 && `(${tableCount} ตัว)`}
-              </h2>
-              {/* Only allow table change for single table bookings */}
-              {tableCount === 1 && !showTableChange && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowTableChange(true)}
-                >
-                  <RefreshCw className="w-4 h-4 mr-1" />
-                  เปลี่ยนโต๊ะ
-                </Button>
-              )}
-            </div>
+            <h2 className="text-base font-semibold text-gray-900">
+              โต๊ะที่จอง {tableCount > 1 && `(${tableCount} ตัว)`}
+            </h2>
 
-            {/* Current table(s) */}
-            <div className="flex flex-wrap items-center gap-2">
-              {selectedNewTableId ? (
-                <>
-                  <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-gray-200 text-sm font-medium line-through text-gray-500">
-                    {table?.label}
-                  </span>
-                  <span className="text-gray-400">→</span>
-                  <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-green-100 text-sm font-medium text-green-700">
-                    <Check className="w-4 h-4" />
-                    {availableTables.find(t => t.id === selectedNewTableId)?.label}
-                  </span>
-                </>
-              ) : allGroupTables.length > 0 ? (
-                allGroupTables.map((label, idx) => (
-                  <span key={idx} className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-amber-100 text-sm font-medium">
-                    {label}
-                  </span>
-                ))
+            {/* Current table(s) with change buttons */}
+            <div className="space-y-2">
+              {groupBookings.length > 0 ? (
+                // Multi-table booking - show each table with change button
+                groupBookings.map((b) => {
+                  const isChanging = tableToChange?.id === b.table_id
+                  const newTableLabel = isChanging && selectedNewTableId 
+                    ? availableTables.find(t => t.id === selectedNewTableId)?.label
+                    : null
+                  
+                  return (
+                    <div key={b.id} className="flex items-center gap-2 flex-wrap">
+                      {isChanging && selectedNewTableId ? (
+                        <>
+                          <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-gray-200 text-sm font-medium line-through text-gray-500">
+                            {b.table?.label || `โต๊ะ ${b.table_id}`}
+                          </span>
+                          <span className="text-gray-400">→</span>
+                          <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-green-100 text-sm font-medium text-green-700">
+                            <Check className="w-4 h-4" />
+                            {newTableLabel}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-red-500 hover:text-red-700"
+                            onClick={() => {
+                              setTableToChange(null)
+                              setSelectedNewTableId(null)
+                              setShowTableChange(false)
+                            }}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-amber-100 text-sm font-medium">
+                            {b.table?.label || `โต๊ะ ${b.table_id}`}
+                          </span>
+                          {!showTableChange && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2"
+                              onClick={() => {
+                                setTableToChange({ id: b.table_id, label: b.table?.label || `โต๊ะ ${b.table_id}` })
+                                setShowTableChange(true)
+                              }}
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )
+                })
               ) : (
-                <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-amber-100 text-sm font-medium">
-                  {table?.label}
-                </span>
+                // Single table booking
+                <div className="flex items-center gap-2 flex-wrap">
+                  {selectedNewTableId && tableToChange ? (
+                    <>
+                      <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-gray-200 text-sm font-medium line-through text-gray-500">
+                        {table?.label}
+                      </span>
+                      <span className="text-gray-400">→</span>
+                      <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-green-100 text-sm font-medium text-green-700">
+                        <Check className="w-4 h-4" />
+                        {availableTables.find(t => t.id === selectedNewTableId)?.label}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-red-500 hover:text-red-700"
+                        onClick={() => {
+                          setTableToChange(null)
+                          setSelectedNewTableId(null)
+                          setShowTableChange(false)
+                        }}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-amber-100 text-sm font-medium">
+                        {table?.label}
+                      </span>
+                      {!showTableChange && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setTableToChange({ id: table!.id, label: table!.label })
+                            setShowTableChange(true)
+                          }}
+                        >
+                          <RefreshCw className="w-4 h-4 mr-1" />
+                          เปลี่ยนโต๊ะ
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
             </div>
 
             {/* Table change UI */}
-            {showTableChange && (
+            {showTableChange && tableToChange && (
               <div className="border-2 border-dashed border-amber-300 rounded-lg p-4 space-y-3 bg-white">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">เลือกโต๊ะใหม่</Label>
+                  <Label className="text-sm font-medium">
+                    เปลี่ยนโต๊ะ {tableToChange.label} เป็น:
+                  </Label>
                   <Button
                     type="button"
                     variant="ghost"
@@ -793,6 +878,7 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
                     onClick={() => {
                       setShowTableChange(false)
                       setSelectedNewTableId(null)
+                      setTableToChange(null)
                     }}
                   >
                     <X className="w-4 h-4" />
