@@ -323,6 +323,26 @@ export async function fetchPrimaryBookingInGroup(bookingGroupId: string): Promis
   return bookings.length > 0 ? bookings[0] : null
 }
 
+// Update booking slip URL
+export async function updateBookingSlip(bookingId: string, slipUrl: string): Promise<void> {
+  const { error } = await supabase
+    .from('bookings')
+    .update({ slip_url: slipUrl })
+    .eq('id', bookingId)
+
+  if (error) throw error
+}
+
+// Update slip for all bookings in a group (when they share the same slip)
+export async function updateGroupBookingsSlip(bookingGroupId: string, slipUrl: string): Promise<void> {
+  const { error } = await supabase
+    .from('bookings')
+    .update({ slip_url: slipUrl })
+    .eq('booking_group_id', bookingGroupId)
+
+  if (error) throw error
+}
+
 // Check-in: ลงทะเบียนเข้างาน (สแกน QR บนตั๋ว)
 export async function checkIn(bookingId: string): Promise<Booking> {
   const { data: booking, error: fetchError } = await supabase

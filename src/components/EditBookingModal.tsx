@@ -9,11 +9,11 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { updateBookingDetails, fetchBookingGroup } from '@/lib/api'
+import { updateBookingDetails, fetchBookingGroup, uploadSlip, updateBookingSlip } from '@/lib/api'
 import { TABLE_BASE_PRICE } from '@/lib/constants'
 import type { Table, Booking, BookingShirtOrder } from '@/types/database'
 import { toast } from 'sonner'
-import { Loader2, Lock, Shirt, Plus, X } from 'lucide-react'
+import { Loader2, Lock, Shirt, Plus, X, Upload } from 'lucide-react'
 import Image from 'next/image'
 
 const AUTH_KEY = 'edit_booking_authenticated'
@@ -88,6 +88,11 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
 
   // Slip preview modal
   const [showSlipPreview, setShowSlipPreview] = useState(false)
+
+  // New slip upload
+  const [newSlipFile, setNewSlipFile] = useState<File | null>(null)
+  const [newSlipPreview, setNewSlipPreview] = useState<string | null>(null)
+  const [isUploadingSlip, setIsUploadingSlip] = useState(false)
 
   const queryClient = useQueryClient()
   const currentBooking = table?.current_booking
@@ -184,9 +189,51 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
     }
   }
 
+  // Handle new slip file selection
+  const handleNewSlipChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    if (file.size > maxSize) {
+      toast.error('ขนาดไฟล์เกิน 5 MB กรุณาเลือกไฟล์ที่เล็กลง')
+      return
+    }
+    const allowed = ['image/jpeg', 'image/png', 'image/webp']
+    if (!allowed.includes(file.type)) {
+      toast.error('รองรับเฉพาะไฟล์รูปภาพ (JPG, PNG, WebP)')
+      return
+    }
+    setNewSlipFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setNewSlipPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const updateMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!booking) throw new Error('No booking')
+      
+      // Upload new slip if provided
+      let newSlipUrl: string | undefined
+      if (newSlipFile) {
+        setIsUploadingSlip(true)
+        newSlipUrl = await uploadSlip(newSlipFile)
+        
+        // Update slip for all bookings in group if they share the same slip
+        if (booking.booking_group_id && groupBookings.length > 0) {
+          // Update all bookings in the group with the new slip
+          for (const b of groupBookings) {
+            await updateBookingSlip(b.id, newSlipUrl)
+          }
+        } else {
+          // Single booking - update slip
+          await updateBookingSlip(booking.id, newSlipUrl)
+        }
+      }
+      
+      // Update other booking details
       return updateBookingDetails({
         bookingId: booking.id,
         userName: userName.trim(),
@@ -205,10 +252,15 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
       toast.success('บันทึกการแก้ไขสำเร็จ!')
       queryClient.invalidateQueries({ queryKey: ['tables'] })
       queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      queryClient.invalidateQueries({ queryKey: ['bookingGroup'] })
+      setNewSlipFile(null)
+      setNewSlipPreview(null)
+      setIsUploadingSlip(false)
       onClose()
     },
     onError: (error: Error) => {
       toast.error('เกิดข้อผิดพลาด', { description: error.message })
+      setIsUploadingSlip(false)
     },
   })
 
@@ -719,25 +771,69 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
               <span className="text-primary">{totalAmount.toLocaleString()} บาท</span>
             </div>
 
-            {/* Show existing slip if available */}
-            {booking.slip_url && (
-              <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <p className="text-sm text-gray-500 mb-2">สลิปที่อัปโหลดไว้</p>
+            {/* Show existing slip or new slip preview */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-3">
+              <p className="text-sm text-gray-500">
+                {newSlipPreview ? 'สลิปใหม่ที่เลือก' : 'สลิปที่อัปโหลดไว้'}
+              </p>
+              
+              {/* Current or new slip preview */}
+              {(newSlipPreview || booking.slip_url) && (
                 <button
                   type="button"
-                  onClick={() => setShowSlipPreview(true)}
+                  onClick={() => !newSlipPreview && setShowSlipPreview(true)}
                   className="relative w-48 h-48 mx-auto block cursor-pointer hover:ring-2 hover:ring-blue-500 hover:ring-offset-2 rounded-lg transition-all"
                 >
                   <Image
-                    src={booking.slip_url}
+                    src={newSlipPreview || booking.slip_url || ''}
                     alt="สลิปการโอนเงิน"
                     fill
                     className="object-contain rounded-lg"
                   />
+                  {newSlipPreview && (
+                    <Badge className="absolute -top-2 -right-2 bg-green-500">ใหม่</Badge>
+                  )}
                 </button>
-                <p className="text-xs text-center text-gray-400 mt-1">คลิกเพื่อขยาย</p>
+              )}
+              {!newSlipPreview && booking.slip_url && (
+                <p className="text-xs text-center text-gray-400">คลิกเพื่อขยาย</p>
+              )}
+
+              {/* Upload new slip button */}
+              <div className="border-2 border-dashed border-amber-300 rounded-lg p-3 text-center hover:border-amber-500 transition-colors bg-amber-50/50">
+                <input
+                  type="file"
+                  id="edit-slip"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleNewSlipChange}
+                  className="hidden"
+                />
+                <label htmlFor="edit-slip" className="cursor-pointer block">
+                  <Upload className="w-6 h-6 mx-auto text-amber-500 mb-1" />
+                  <p className="text-sm text-amber-700 font-medium">
+                    {newSlipPreview ? 'เปลี่ยนสลิปใหม่' : 'อัปโหลดสลิปใหม่'}
+                  </p>
+                  <p className="text-xs text-gray-500">JPG, PNG, WebP ไม่เกิน 5 MB</p>
+                </label>
               </div>
-            )}
+
+              {/* Cancel new slip button */}
+              {newSlipPreview && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    setNewSlipFile(null)
+                    setNewSlipPreview(null)
+                  }}
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  ยกเลิกสลิปใหม่ (ใช้สลิปเดิม)
+                </Button>
+              )}
+            </div>
 
             {/* Slip Preview Modal */}
             <Dialog open={showSlipPreview} onOpenChange={setShowSlipPreview}>
@@ -776,12 +872,12 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
             <Button
               type="submit"
               className="min-h-12 flex-1 text-base"
-              disabled={updateMutation.isPending}
+              disabled={updateMutation.isPending || isUploadingSlip}
             >
-              {updateMutation.isPending && (
+              {(updateMutation.isPending || isUploadingSlip) && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
-              บันทึกการแก้ไข
+              {isUploadingSlip ? 'กำลังอัปโหลดสลิป...' : 'บันทึกการแก้ไข'}
             </Button>
           </div>
         </form>
