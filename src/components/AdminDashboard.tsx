@@ -45,6 +45,7 @@ function formatDate(dateString: string) {
 }
 
 const SHIRT_TYPE_LABEL = { crew: 'คอกลม', polo: 'คอปก' }
+const SHIRT_PRICES = { crew: 250, polo: 300 }
 
 export function AdminDashboard() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
@@ -457,6 +458,8 @@ export function AdminDashboard() {
                           <th className="px-4 py-2 text-left font-medium text-gray-700">ประเภท</th>
                           <th className="px-4 py-2 text-left font-medium text-gray-700">ไซส์</th>
                           <th className="px-4 py-2 text-right font-medium text-gray-700">จำนวน</th>
+                          <th className="px-4 py-2 text-right font-medium text-gray-700">ราคา/ตัว</th>
+                          <th className="px-4 py-2 text-right font-medium text-gray-700">ราคารวม</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -474,7 +477,7 @@ export function AdminDashboard() {
                           if (entries.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={3} className="px-4 py-3 text-center text-gray-400">
+                                <td colSpan={5} className="px-4 py-3 text-center text-gray-400">
                                   ไม่มีรายการสั่งเสื้อ
                                 </td>
                               </tr>
@@ -482,16 +485,44 @@ export function AdminDashboard() {
                           }
                           return entries.map(([key, qty]) => {
                             const [type, size] = key.split('|')
+                            const price = SHIRT_PRICES[type as 'crew' | 'polo'] || 0
+                            const totalPrice = price * qty
                             return (
                               <tr key={key} className="hover:bg-gray-50">
                                 <td className="px-4 py-2">{SHIRT_TYPE_LABEL[type as 'crew' | 'polo'] || type}</td>
                                 <td className="px-4 py-2">{size}</td>
                                 <td className="px-4 py-2 text-right font-medium">{qty}</td>
+                                <td className="px-4 py-2 text-right text-gray-600">{price.toLocaleString()}</td>
+                                <td className="px-4 py-2 text-right font-medium text-blue-600">{totalPrice.toLocaleString()}</td>
                               </tr>
                             )
                           })
                         })()}
                       </tbody>
+                      <tfoot className="bg-blue-50 border-t-2 border-blue-200">
+                        {(() => {
+                          let totalQty = 0
+                          let grandTotal = 0
+                          allBookings?.forEach(b => {
+                            const orders = (b.shirt_orders as BookingShirtOrder[]) || []
+                            orders.forEach(o => {
+                              const qty = o.quantity || 0
+                              const price = SHIRT_PRICES[o.type as 'crew' | 'polo'] || 0
+                              totalQty += qty
+                              grandTotal += price * qty
+                            })
+                          })
+                          if (totalQty === 0) return null
+                          return (
+                            <tr className="font-bold">
+                              <td className="px-4 py-3" colSpan={2}>รวมทั้งหมด</td>
+                              <td className="px-4 py-3 text-right">{totalQty} ตัว</td>
+                              <td className="px-4 py-3"></td>
+                              <td className="px-4 py-3 text-right text-blue-700">{grandTotal.toLocaleString()} บาท</td>
+                            </tr>
+                          )
+                        })()}
+                      </tfoot>
                     </table>
                   </div>
                 </CardContent>
