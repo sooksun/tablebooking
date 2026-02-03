@@ -257,6 +257,73 @@ export async function rejectBooking(bookingId: string): Promise<void> {
   if (resetError) throw resetError
 }
 
+// Cancel booking (user or admin) - release table back to available
+export async function cancelBooking(bookingId: string): Promise<void> {
+  // Get the booking
+  const { data: bookingData, error: getError } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('id', bookingId)
+    .single()
+
+  if (getError) throw getError
+  
+  const booking = bookingData as Booking
+
+  // Update booking to CANCELLED
+  const { error: updateError } = await supabase
+    .from('bookings')
+    .update({ status: 'CANCELLED' })
+    .eq('id', bookingId)
+
+  if (updateError) throw updateError
+
+  // Reset table to AVAILABLE
+  const { error: resetError } = await supabase
+    .from('tables')
+    .update({ 
+      status: 'AVAILABLE',
+      current_queue_count: 0 
+    })
+    .eq('id', booking.table_id)
+
+  if (resetError) throw resetError
+}
+
+// Cancel all bookings in a group (for multi-table bookings)
+export async function cancelBookingGroup(bookingGroupId: string): Promise<void> {
+  // Get all bookings in the group
+  const { data: bookings, error: getError } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('booking_group_id', bookingGroupId)
+
+  if (getError) throw getError
+  if (!bookings || bookings.length === 0) throw new Error('ไม่พบการจอง')
+
+  // Update all bookings to CANCELLED
+  const { error: updateError } = await supabase
+    .from('bookings')
+    .update({ status: 'CANCELLED' })
+    .eq('booking_group_id', bookingGroupId)
+
+  if (updateError) throw updateError
+
+  // Reset all tables to AVAILABLE
+  const tableIds = (bookings as Booking[]).map(b => b.table_id)
+  for (const tableId of tableIds) {
+    const { error: resetError } = await supabase
+      .from('tables')
+      .update({ 
+        status: 'AVAILABLE',
+        current_queue_count: 0 
+      })
+      .eq('id', tableId)
+
+    if (resetError) throw resetError
+  }
+}
+
 // Admin: Update booking memo
 export async function updateBookingMemo(bookingId: string, memo: string): Promise<void> {
   const { error } = await supabase

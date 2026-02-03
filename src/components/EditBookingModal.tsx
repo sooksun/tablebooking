@@ -9,11 +9,11 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { updateBookingDetails, fetchBookingGroup, uploadSlip, updateBookingSlip, fetchAvailableTables, changeBookingTable } from '@/lib/api'
+import { updateBookingDetails, fetchBookingGroup, uploadSlip, updateBookingSlip, fetchAvailableTables, changeBookingTable, cancelBooking, cancelBookingGroup } from '@/lib/api'
 import { TABLE_BASE_PRICE } from '@/lib/constants'
 import type { Table, Booking, BookingShirtOrder } from '@/types/database'
 import { toast } from 'sonner'
-import { Loader2, Lock, Shirt, Plus, X, Upload, RefreshCw, Check } from 'lucide-react'
+import { Loader2, Lock, Shirt, Plus, X, Upload, RefreshCw, Check, Trash2, AlertTriangle } from 'lucide-react'
 import Image from 'next/image'
 
 const AUTH_KEY = 'edit_booking_authenticated'
@@ -98,6 +98,9 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
   const [showTableChange, setShowTableChange] = useState(false)
   const [selectedNewTableId, setSelectedNewTableId] = useState<number | null>(null)
   const [tableToChange, setTableToChange] = useState<{ id: number; label: string } | null>(null)
+
+  // Cancel booking
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
   const queryClient = useQueryClient()
   const currentBooking = table?.current_booking
@@ -294,7 +297,35 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
     },
   })
 
+  // Cancel booking mutation
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      if (!booking) throw new Error('No booking')
+      
+      // For multi-table booking, cancel all bookings in the group
+      if (booking.booking_group_id && groupBookings.length > 1) {
+        await cancelBookingGroup(booking.booking_group_id)
+      } else {
+        // Single table booking
+        await cancelBooking(booking.id)
+      }
+    },
+    onSuccess: () => {
+      toast.success('ยกเลิกการจองสำเร็จ!')
+      queryClient.invalidateQueries({ queryKey: ['tables'] })
+      queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      queryClient.invalidateQueries({ queryKey: ['bookingGroup'] })
+      queryClient.invalidateQueries({ queryKey: ['availableTables'] })
+      setShowCancelConfirm(false)
+      onClose()
+    },
+    onError: (error: Error) => {
+      toast.error('เกิดข้อผิดพลาด', { description: error.message })
+    },
+  })
+
   const handleClose = () => {
+    setShowCancelConfirm(false)
     onClose()
   }
 
@@ -1052,18 +1083,74 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
               className="min-h-12 flex-1 text-base"
               onClick={handleClose}
             >
-              ยกเลิก
+              ปิด
             </Button>
             <Button
               type="submit"
               className="min-h-12 flex-1 text-base"
-              disabled={updateMutation.isPending || isUploadingSlip}
+              disabled={updateMutation.isPending || isUploadingSlip || cancelMutation.isPending}
             >
               {(updateMutation.isPending || isUploadingSlip) && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
               {isUploadingSlip ? 'กำลังอัปโหลดสลิป...' : 'บันทึกการแก้ไข'}
             </Button>
+          </div>
+
+          {/* Cancel Booking Section */}
+          <div className="border-t pt-4 mt-2">
+            {!showCancelConfirm ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => setShowCancelConfirm(true)}
+                disabled={updateMutation.isPending || cancelMutation.isPending}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                ยกเลิกการจอง
+              </Button>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-red-700">ยืนยันการยกเลิกการจอง</p>
+                    <p className="text-sm text-red-600 mt-1">
+                      {tableCount > 1 
+                        ? `การจองโต๊ะทั้งหมด ${tableCount} ตัว จะถูกยกเลิก และโต๊ะจะกลับไปเป็นว่างอีกครั้ง`
+                        : `การจองโต๊ะ ${table?.label} จะถูกยกเลิก และโต๊ะจะกลับไปเป็นว่างอีกครั้ง`
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setShowCancelConfirm(false)}
+                    disabled={cancelMutation.isPending}
+                  >
+                    ไม่ยกเลิก
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => cancelMutation.mutate()}
+                    disabled={cancelMutation.isPending}
+                  >
+                    {cancelMutation.isPending && (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    )}
+                    ยืนยันยกเลิก
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </form>
       </DialogContent>
