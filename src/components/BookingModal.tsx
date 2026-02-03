@@ -916,15 +916,17 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
 
             {/* QR Code */}
             <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
+              <p className="text-sm text-gray-500 mb-2">สแกน QR Code เพื่อชำระเงิน</p>
               <div className="w-48 h-auto mx-auto">
                 <Image
-                  src="/qr-codepp4.jpg"
+                  src="/qr-codepp.png"
                   alt="PromptPay QR Code"
                   width={192}
                   height={240}
                   className="w-full h-auto rounded-lg"
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-2">PromptPay e-Donation ลดหย่อนภาษี</p>
             </div>
           </section>
 
