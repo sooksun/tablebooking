@@ -105,6 +105,22 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
   // Load booking data when modal opens
   useEffect(() => {
     if (booking && open) {
+      // Debug: Log booking data to check if extended fields are present
+      console.log('[EditBookingModal] Booking data:', {
+        id: booking.id,
+        user_name: booking.user_name,
+        phone: booking.phone,
+        amount: booking.amount,
+        donation: booking.donation,
+        shirt_orders: booking.shirt_orders,
+        shirt_delivery: booking.shirt_delivery,
+        shirt_delivery_address: booking.shirt_delivery_address,
+        e_donation_want: booking.e_donation_want,
+        e_donation_name: booking.e_donation_name,
+        e_donation_address: booking.e_donation_address,
+        e_donation_id: booking.e_donation_id,
+      })
+
       setUserName(booking.user_name || '')
       setPhone(booking.phone || '')
       setDonation(booking.donation || 0)
