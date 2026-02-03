@@ -16,8 +16,11 @@ interface TableGridProps {
 }
 
 function getTableCursor(table: TableWithBooking): string {
+  // จองแล้ว (BOOKED) = ไม่ให้คลิก
   if (table.status === 'BOOKED') return 'not-allowed'
-  if (table.status === 'PENDING' || table.current_queue_count >= 1) return 'not-allowed'
+  // รออนุมัติ (PENDING) = ให้คลิกเพื่อแก้ไข
+  if (table.status === 'PENDING' || table.current_queue_count >= 1) return 'pointer'
+  // ว่าง = ให้คลิกเพื่อจอง
   return 'pointer'
 }
 
@@ -42,6 +45,16 @@ function getStatusText(table: TableWithBooking): string {
 
 function isTableAvailable(table: TableWithBooking): boolean {
   return table.status === 'AVAILABLE' && table.current_queue_count === 0
+}
+
+// โต๊ะที่คลิกได้ = ว่าง หรือ รออนุมัติ (PENDING)
+function isTableClickable(table: TableWithBooking): boolean {
+  // จองแล้ว (BOOKED) = ไม่ให้คลิก
+  if (table.status === 'BOOKED') return false
+  // รออนุมัติ (PENDING) = ให้คลิกเพื่อแก้ไข
+  if (table.status === 'PENDING' || table.current_queue_count >= 1) return true
+  // ว่าง = ให้คลิกเพื่อจอง
+  return true
 }
 
 export function TableGrid({ onTableSelect, fitViewport }: TableGridProps) {
@@ -107,20 +120,21 @@ export function TableGrid({ onTableSelect, fitViewport }: TableGridProps) {
               
               {/* Tables in row */}
               {row.map((table) => {
+                const clickable = isTableClickable(table)
                 const available = isTableAvailable(table)
                 
                 return (
                   <button
                     key={table.id}
                     onClick={() => {
-                      if (available) {
+                      if (clickable) {
                         onTableSelect(table)
                       }
                     }}
-                    disabled={!available}
+                    disabled={!clickable}
                     className={cn(
                       'relative group flex flex-col items-center justify-center transition-all duration-200 aspect-square min-w-0 touch-manipulation active:scale-105',
-                      available ? 'hover:scale-110 hover:z-10 sm:hover:scale-110' : 'opacity-80'
+                      clickable ? 'hover:scale-110 hover:z-10 sm:hover:scale-110' : 'opacity-80'
                     )}
                     style={{ cursor: getTableCursor(table) }}
                   >
