@@ -446,10 +446,10 @@ export function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Shirt Summary */}
+              {/* Shirt Summary - Aggregated */}
               <Card>
                 <CardContent className="p-4">
-                  <h3 className="font-semibold mb-3">สรุปยอดเสื้อ</h3>
+                  <h3 className="font-semibold mb-3">สรุปยอดเสื้อ (รวม)</h3>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-100">
@@ -487,6 +487,75 @@ export function AdminDashboard() {
                                 <td className="px-4 py-2">{SHIRT_TYPE_LABEL[type as 'crew' | 'polo'] || type}</td>
                                 <td className="px-4 py-2">{size}</td>
                                 <td className="px-4 py-2 text-right font-medium">{qty}</td>
+                              </tr>
+                            )
+                          })
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Shirt Orders Detail - By Person */}
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold mb-3">รายละเอียดการสั่งเสื้อ (แยกตามผู้สั่ง)</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-blue-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-700">ผู้สั่ง</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-700">เบอร์โทร</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-700">รายการเสื้อ</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-700">การจัดส่ง</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {(() => {
+                          // Get bookings with shirt orders
+                          const bookingsWithShirts = allBookings?.filter(b => {
+                            const orders = (b.shirt_orders as BookingShirtOrder[]) || []
+                            return orders.length > 0
+                          }) || []
+                          
+                          if (bookingsWithShirts.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={4} className="px-4 py-3 text-center text-gray-400">
+                                  ไม่มีรายการสั่งเสื้อ
+                                </td>
+                              </tr>
+                            )
+                          }
+                          
+                          return bookingsWithShirts.map((b) => {
+                            const orders = (b.shirt_orders as BookingShirtOrder[]) || []
+                            const shirtSummary = orders.map(o => 
+                              `${SHIRT_TYPE_LABEL[o.type as 'crew' | 'polo'] || o.type} ${o.size} x${o.quantity}`
+                            ).join(', ')
+                            
+                            const deliveryInfo = b.shirt_delivery === 'delivery' 
+                              ? `📦 ส่งที่: ${b.shirt_delivery_address || '-'}`
+                              : '🏠 รับหน้างาน'
+                            
+                            return (
+                              <tr key={b.id} className="hover:bg-gray-50">
+                                <td className="px-3 py-2 font-medium">{b.user_name}</td>
+                                <td className="px-3 py-2 text-gray-600">{b.phone}</td>
+                                <td className="px-3 py-2">{shirtSummary}</td>
+                                <td className="px-3 py-2 text-sm">
+                                  {b.shirt_delivery === 'delivery' ? (
+                                    <div>
+                                      <span className="text-blue-600 font-medium">📦 จัดส่ง</span>
+                                      <p className="text-gray-500 text-xs mt-0.5 max-w-xs truncate" title={b.shirt_delivery_address || ''}>
+                                        {b.shirt_delivery_address || '-'}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <span className="text-green-600">🏠 รับหน้างาน</span>
+                                  )}
+                                </td>
                               </tr>
                             )
                           })
