@@ -45,6 +45,20 @@ import { toast } from 'sonner'
 import { Loader2, Upload, Shirt, Plus, X } from 'lucide-react'
 import Image from 'next/image'
 
+// Generate UUID that works on both HTTP and HTTPS
+function generateUUID(): string {
+  // Try crypto.randomUUID first (requires HTTPS)
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  // Fallback for HTTP or older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
 interface BookingModalProps {
   open: boolean
   table: Table | null
@@ -239,7 +253,7 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
       const restAmount = BASE_PRICE
 
       // Generate unique group ID for multi-table bookings
-      const bookingGroupId = selectedTables.length > 1 ? crypto.randomUUID() : undefined
+      const bookingGroupId = selectedTables.length > 1 ? generateUUID() : undefined
 
       // First table includes all extra info (shirt, donation, e-donation)
       await createBooking({
