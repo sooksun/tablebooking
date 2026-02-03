@@ -914,19 +914,19 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
               <span className="text-primary">{totalAmount.toLocaleString()} บาท</span>
             </div>
 
-            {/* QR Code */}
+            {/* QR Code - use native img for long-press save */}
             <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
               <p className="text-sm text-gray-500 mb-2">สแกน QR Code เพื่อชำระเงิน</p>
               <div className="w-48 h-auto mx-auto">
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src="/qr-codepp.png"
                   alt="PromptPay QR Code"
-                  width={192}
-                  height={240}
                   className="w-full h-auto rounded-lg"
                 />
               </div>
               <p className="text-xs text-gray-500 mt-2">PromptPay e-Donation ลดหย่อนภาษี</p>
+              <p className="text-xs text-gray-400 mt-1">(กดค้างที่รูปเพื่อบันทึก)</p>
             </div>
           </section>
 
