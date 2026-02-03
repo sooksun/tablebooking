@@ -65,6 +65,7 @@ export default function HomePage() {
               <li>สั่งเสื้อที่ระลึก (ไม่บังคับ) หรือขอใบ E Donation ได้ตามต้องการ</li>
               <li>ชำระเงินตามยอดรวม แล้วอัปโหลดสลิป</li>
               <li>รอการยืนยันจากผู้ดูแลระบบ</li>
+              <li><strong>สั่งเสื้อโดยไม่จองโต๊ะ:</strong> คลิกปุ่ม &quot;จองเสื้อ&quot; ที่เมนูด้านบน</li>
             </ol>
             
             <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">

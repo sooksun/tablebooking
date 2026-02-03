@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import type { Booking, Registration, BookingShirtOrder } from '@/types/database'
 import { toast } from 'sonner'
-import { Loader2, Check, X, Eye, Clock, CheckCircle, XCircle, AlertCircle, Ban, MessageSquare, Save, ScanLine } from 'lucide-react'
+import { Loader2, Check, X, Eye, Clock, CheckCircle, XCircle, AlertCircle, Ban, MessageSquare, Save, ScanLine, BarChart3 } from 'lucide-react'
 import Image from 'next/image'
 import { CheckInPanel } from '@/components/CheckInPanel'
 
@@ -258,13 +258,17 @@ export function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5">
           <TabsTrigger value="pending" className="gap-1 sm:gap-2">
             <Clock className="w-4 h-4" />
             <span className="hidden sm:inline">รอตรวจสอบ</span> ({pendingBookings?.length || 0})
           </TabsTrigger>
           <TabsTrigger value="all" className="gap-1 sm:gap-2">
             <span className="hidden sm:inline">ทั้งหมด</span> ({allBookings?.length || 0})
+          </TabsTrigger>
+          <TabsTrigger value="summary" className="gap-1 sm:gap-2">
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">สรุป</span>
           </TabsTrigger>
           <TabsTrigger value="registrations" className="gap-1 sm:gap-2">
             <span className="hidden sm:inline">ไม่จองโต๊ะ</span> ({registrations.length})
@@ -312,6 +316,186 @@ export function AdminDashboard() {
               {allBookings?.map((booking) => (
                 <BookingCard key={booking.id} booking={booking} />
               ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="summary" className="mt-4">
+          {isAllLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-blue-700">
+                      {allBookings?.filter(b => b.status === 'APPROVED').length || 0}
+                    </p>
+                    <p className="text-sm text-blue-600">โต๊ะอนุมัติแล้ว</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-yellow-50 border-yellow-200">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-yellow-700">
+                      {allBookings?.filter(b => b.status === 'PENDING_VERIFICATION').length || 0}
+                    </p>
+                    <p className="text-sm text-yellow-600">รอตรวจสอบ</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-green-50 border-green-200">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-green-700">
+                      {(allBookings?.reduce((sum, b) => sum + (b.amount || 0), 0) || 0).toLocaleString()}
+                    </p>
+                    <p className="text-sm text-green-600">ยอดรวม (บาท)</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-purple-50 border-purple-200">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-purple-700">
+                      {allBookings?.reduce((sum, b) => {
+                        const orders = (b.shirt_orders as BookingShirtOrder[]) || []
+                        return sum + orders.reduce((s, o) => s + (o.quantity || 0), 0)
+                      }, 0) || 0}
+                    </p>
+                    <p className="text-sm text-purple-600">เสื้อ (ตัว)</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Booking Table */}
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium text-gray-700">โต๊ะ</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-700">ผู้จอง</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-700">เบอร์โทร</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-700">เสื้อ</th>
+                          <th className="px-4 py-3 text-right font-medium text-gray-700">บริจาค</th>
+                          <th className="px-4 py-3 text-right font-medium text-gray-700">ยอดรวม</th>
+                          <th className="px-4 py-3 text-center font-medium text-gray-700">สถานะ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {allBookings?.map((booking) => {
+                          const shirtOrders = (booking.shirt_orders as BookingShirtOrder[]) || []
+                          const shirtSummary = shirtOrders.length > 0
+                            ? shirtOrders.map(o => `${SHIRT_TYPE_LABEL[o.type]} ${o.size} x${o.quantity}`).join(', ')
+                            : '-'
+                          const totalShirts = shirtOrders.reduce((s, o) => s + (o.quantity || 0), 0)
+                          
+                          return (
+                            <tr key={booking.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium">
+                                {booking.table?.label || `#${booking.table_id}`}
+                              </td>
+                              <td className="px-4 py-3">{booking.user_name}</td>
+                              <td className="px-4 py-3 text-gray-500">{booking.phone}</td>
+                              <td className="px-4 py-3">
+                                {totalShirts > 0 ? (
+                                  <span className="text-blue-600" title={shirtSummary}>
+                                    {totalShirts} ตัว
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {(booking.donation || 0) > 0 ? (
+                                  <span className="text-green-600">+{(booking.donation || 0).toLocaleString()}</span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right font-medium">
+                                {(booking.amount || 0).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {getStatusBadge(booking.status)}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                      <tfoot className="bg-gray-50 font-medium">
+                        <tr>
+                          <td className="px-4 py-3" colSpan={3}>รวมทั้งหมด</td>
+                          <td className="px-4 py-3 text-blue-600">
+                            {allBookings?.reduce((sum, b) => {
+                              const orders = (b.shirt_orders as BookingShirtOrder[]) || []
+                              return sum + orders.reduce((s, o) => s + (o.quantity || 0), 0)
+                            }, 0) || 0} ตัว
+                          </td>
+                          <td className="px-4 py-3 text-right text-green-600">
+                            +{(allBookings?.reduce((sum, b) => sum + (b.donation || 0), 0) || 0).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-right text-primary">
+                            {(allBookings?.reduce((sum, b) => sum + (b.amount || 0), 0) || 0).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3"></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Shirt Summary */}
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold mb-3">สรุปยอดเสื้อ</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-4 py-2 text-left font-medium text-gray-700">ประเภท</th>
+                          <th className="px-4 py-2 text-left font-medium text-gray-700">ไซส์</th>
+                          <th className="px-4 py-2 text-right font-medium text-gray-700">จำนวน</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {(() => {
+                          // Aggregate shirt orders
+                          const shirtMap = new Map<string, number>()
+                          allBookings?.forEach(b => {
+                            const orders = (b.shirt_orders as BookingShirtOrder[]) || []
+                            orders.forEach(o => {
+                              const key = `${o.type}|${o.size}`
+                              shirtMap.set(key, (shirtMap.get(key) || 0) + (o.quantity || 0))
+                            })
+                          })
+                          const entries = Array.from(shirtMap.entries()).sort()
+                          if (entries.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={3} className="px-4 py-3 text-center text-gray-400">
+                                  ไม่มีรายการสั่งเสื้อ
+                                </td>
+                              </tr>
+                            )
+                          }
+                          return entries.map(([key, qty]) => {
+                            const [type, size] = key.split('|')
+                            return (
+                              <tr key={key} className="hover:bg-gray-50">
+                                <td className="px-4 py-2">{SHIRT_TYPE_LABEL[type as 'crew' | 'polo'] || type}</td>
+                                <td className="px-4 py-2">{size}</td>
+                                <td className="px-4 py-2 text-right font-medium">{qty}</td>
+                              </tr>
+                            )
+                          })
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </TabsContent>
