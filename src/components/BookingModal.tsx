@@ -447,7 +447,7 @@ export function BookingModal({ open, table, onClose }: BookingModalProps) {
       <DialogContent className="max-h-[92dvh] overflow-y-auto w-full sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl">
-            {table ? `จองโต๊ะ ${table.label}` : 'ลงทะเบียน (ไม่จองโต๊ะ)'}
+            {table ? `จองโต๊ะ ${table.label}` : 'จองเสื้อ'}
           </DialogTitle>
           <DialogDescription>
             {table
