@@ -299,9 +299,9 @@ export function EditBookingModal({ open, table, onClose, isAdmin: isAdminProp }:
     },
   })
 
-  // Cancel booking mutation: { cancelAll: true } = ยกเลิกทั้งหมดในกลุ่ม, false/undefined = เฉพาะโต๊ะนี้
+  // Cancel booking mutation: { cancelAll: true } = ยกเลิกทั้งหมดในกลุ่ม, ไม่ส่งหรือ {} = เฉพาะโต๊ะนี้
   const cancelMutation = useMutation({
-    mutationFn: async (options: { cancelAll?: boolean } = {}) => {
+    mutationFn: async (options?: { cancelAll?: boolean }) => {
       if (!booking) throw new Error('No booking')
       const cancelAll = options?.cancelAll === true
 
@@ -1173,7 +1173,7 @@ export function EditBookingModal({ open, table, onClose, isAdmin: isAdminProp }:
                         variant="destructive"
                         size="sm"
                         className="flex-1"
-                        onClick={() => cancelMutation.mutate()}
+                        onClick={() => cancelMutation.mutate({})}
                         disabled={cancelMutation.isPending}
                       >
                         {cancelMutation.isPending && (
