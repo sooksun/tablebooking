@@ -35,6 +35,8 @@ interface EditBookingModalProps {
   open: boolean
   table: TableWithBooking | null
   onClose: () => void
+  /** เมื่อเป็น true (Admin) ข้ามหน้า login และให้แก้ไขได้เลย */
+  isAdmin?: boolean
 }
 
 interface ShirtOrder {
@@ -57,7 +59,7 @@ const SHIRT_IMAGES = [
 ]
 const SHIRT_DELIVERY_FEE = 50
 
-export function EditBookingModal({ open, table, onClose }: EditBookingModalProps) {
+export function EditBookingModal({ open, table, onClose, isAdmin: isAdminProp }: EditBookingModalProps) {
   const [authenticated, setAuthenticated] = useState(false)
   const [loginUser, setLoginUser] = useState('')
   const [loginPass, setLoginPass] = useState('')
@@ -297,16 +299,15 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
     },
   })
 
-  // Cancel booking mutation
+  // Cancel booking mutation: { cancelAll: true } = ยกเลิกทั้งหมดในกลุ่ม, false/undefined = เฉพาะโต๊ะนี้
   const cancelMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (options: { cancelAll?: boolean } = {}) => {
       if (!booking) throw new Error('No booking')
-      
-      // For multi-table booking, cancel all bookings in the group
-      if (booking.booking_group_id && groupBookings.length > 1) {
+      const cancelAll = options?.cancelAll === true
+
+      if (cancelAll && booking.booking_group_id && groupBookings.length > 1) {
         await cancelBookingGroup(booking.booking_group_id)
       } else {
-        // Single table booking
         await cancelBooking(booking.id)
       }
     },
@@ -401,8 +402,9 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
     )
   }
 
-  // Login form
-  if (!authenticated) {
+  // Login form (ข้ามเมื่อเป็น Admin)
+  const canEdit = authenticated || !!isAdminProp
+  if (!canEdit) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-sm">
@@ -1117,37 +1119,82 @@ export function EditBookingModal({ open, table, onClose }: EditBookingModalProps
                   <div>
                     <p className="font-medium text-red-700">ยืนยันการยกเลิกการจอง</p>
                     <p className="text-sm text-red-600 mt-1">
-                      {tableCount > 1 
-                        ? `การจองโต๊ะทั้งหมด ${tableCount} ตัว จะถูกยกเลิก และโต๊ะจะกลับไปเป็นว่างอีกครั้ง`
+                      {tableCount > 1
+                        ? `การจองกลุ่มนี้มี ${tableCount} โต๊ะ เลือกวิธียกเลิกด้านล่าง`
                         : `การจองโต๊ะ ${table?.label} จะถูกยกเลิก และโต๊ะจะกลับไปเป็นว่างอีกครั้ง`
                       }
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setShowCancelConfirm(false)}
-                    disabled={cancelMutation.isPending}
-                  >
-                    ไม่ยกเลิก
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => cancelMutation.mutate()}
-                    disabled={cancelMutation.isPending}
-                  >
-                    {cancelMutation.isPending && (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    )}
-                    ยืนยันยกเลิก
-                  </Button>
+                <div className="flex flex-col gap-2">
+                  {tableCount > 1 ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-center border-red-200 text-red-700 hover:bg-red-100"
+                        onClick={() => cancelMutation.mutate({ cancelAll: false })}
+                        disabled={cancelMutation.isPending}
+                      >
+                        {cancelMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : null}
+                        1. ยกเลิกการจองเฉพาะโต๊ะนี้ ({table?.label})
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="w-full justify-center"
+                        onClick={() => cancelMutation.mutate({ cancelAll: true })}
+                        disabled={cancelMutation.isPending}
+                      >
+                        {cancelMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : null}
+                        2. ยกเลิกการจองทั้งหมด ({tableCount} โต๊ะ)
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setShowCancelConfirm(false)}
+                        disabled={cancelMutation.isPending}
+                      >
+                        ไม่ยกเลิก
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => cancelMutation.mutate()}
+                        disabled={cancelMutation.isPending}
+                      >
+                        {cancelMutation.isPending && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        ยืนยันยกเลิก
+                      </Button>
+                    </div>
+                  )}
+                  {tableCount > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-full mt-1"
+                      onClick={() => setShowCancelConfirm(false)}
+                      disabled={cancelMutation.isPending}
+                    >
+                      ไม่ยกเลิก
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

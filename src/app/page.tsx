@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { TableGrid } from '@/components/TableGrid'
 import { BookingModal } from '@/components/BookingModal'
 import { EditBookingModal } from '@/components/EditBookingModal'
+import { fetchTables } from '@/lib/api'
 import type { Table, Booking } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -19,6 +21,20 @@ export default function HomePage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showInfoPopup, setShowInfoPopup] = useState(true)
   const [isDesktop, setIsDesktop] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  const { data: tables = [] } = useQuery({
+    queryKey: ['tables'],
+    queryFn: fetchTables,
+  })
+  const tableCounts = useMemo(() => {
+    const list = tables as Table[]
+    return {
+      available: list.filter((t) => t.status === 'AVAILABLE').length,
+      pending: list.filter((t) => t.status === 'PENDING').length,
+      booked: list.filter((t) => t.status === 'BOOKED').length,
+    }
+  }, [tables])
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)')
@@ -26,6 +42,11 @@ export default function HomePage() {
     fn()
     mq.addEventListener('change', fn)
     return () => mq.removeEventListener('change', fn)
+  }, [])
+
+  useEffect(() => {
+    const authenticated = typeof window !== 'undefined' && sessionStorage.getItem('admin_authenticated') === 'true'
+    setIsAdmin(!!authenticated)
   }, [])
 
   const handleCloseInfo = () => {
@@ -145,15 +166,15 @@ export default function HomePage() {
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6 w-full sm:w-auto">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-full bg-green-500 border-2 border-white shadow" />
-                <span className="text-sm font-medium">ว่าง</span>
+                <span className="text-sm font-medium">ว่าง ({tableCounts.available})</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-full bg-yellow-500 border-2 border-white shadow" />
-                <span className="text-sm font-medium">รออนุมัติ</span>
+                <span className="text-sm font-medium">รออนุมัติ ({tableCounts.pending})</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-full bg-gray-500 border-2 border-white shadow" />
-                <span className="text-sm font-medium">จองแล้ว</span>
+                <span className="text-sm font-medium">จองแล้ว ({tableCounts.booked})</span>
               </div>
             </div>
           </div>
@@ -165,11 +186,12 @@ export default function HomePage() {
             <div className="h-full max-h-full w-full max-w-[1100px] aspect-[13/9] min-h-0 shrink-0 overflow-y-auto overflow-x-hidden">
               <TableGrid
                 fitViewport
+                allowClickBooked={isAdmin}
                 onTableSelect={(t) => {
                   const table = t as TableWithBooking
                   setSelectedTable(table)
-                  // ถ้าโต๊ะมีการจองรออนุมัติ → เปิด EditModal
-                  if (table.current_booking?.status === 'PENDING_VERIFICATION') {
+                  // รออนุมัติ หรือ โต๊ะจองแล้ว (BOOKED) และเป็น Admin → เปิด EditModal
+                  if (table.current_booking?.status === 'PENDING_VERIFICATION' || (table.status === 'BOOKED' && table.current_booking && isAdmin)) {
                     setShowEditModal(true)
                   } else {
                     setShowBookingModal(true)
@@ -179,11 +201,12 @@ export default function HomePage() {
             </div>
           ) : (
             <TableGrid
+              allowClickBooked={isAdmin}
               onTableSelect={(t) => {
                 const table = t as TableWithBooking
                 setSelectedTable(table)
-                // ถ้าโต๊ะมีการจองรออนุมัติ → เปิด EditModal
-                if (table.current_booking?.status === 'PENDING_VERIFICATION') {
+                // รออนุมัติ หรือ โต๊ะจองแล้ว (BOOKED) และเป็น Admin → เปิด EditModal
+                if (table.current_booking?.status === 'PENDING_VERIFICATION' || (table.status === 'BOOKED' && table.current_booking && isAdmin)) {
                   setShowEditModal(true)
                 } else {
                   setShowBookingModal(true)
@@ -205,7 +228,7 @@ export default function HomePage() {
         }}
       />
 
-      {/* Edit Booking Modal - for pending bookings */}
+      {/* Edit Booking Modal - for pending bookings หรือ Admin แก้ไขโต๊ะ BOOKED */}
       <EditBookingModal
         open={showEditModal}
         table={selectedTable}
@@ -213,6 +236,7 @@ export default function HomePage() {
           setShowEditModal(false)
           setSelectedTable(null)
         }}
+        isAdmin={isAdmin}
       />
     </div>
   )

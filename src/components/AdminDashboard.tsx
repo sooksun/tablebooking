@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchPendingBookings, fetchAllBookings, approveBooking, rejectBooking, updateBookingMemo, updateBookingDetails, fetchRegistrations } from '@/lib/api'
+import { fetchPendingBookings, fetchAllBookings, approveBooking, rejectBooking, updateBookingMemo, updateBookingDetails, fetchRegistrations, getBackupData, runFixData } from '@/lib/api'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import type { Booking, Registration, BookingShirtOrder } from '@/types/database'
 import { toast } from 'sonner'
-import { Loader2, Check, X, Eye, Clock, CheckCircle, XCircle, AlertCircle, Ban, MessageSquare, Save, ScanLine, BarChart3 } from 'lucide-react'
+import { Loader2, Check, X, Eye, Clock, CheckCircle, XCircle, AlertCircle, Ban, MessageSquare, Save, ScanLine, BarChart3, Pencil, Database, Wrench } from 'lucide-react'
 import Image from 'next/image'
 import { CheckInPanel } from '@/components/CheckInPanel'
 
@@ -47,8 +47,121 @@ function formatDate(dateString: string) {
 const SHIRT_TYPE_LABEL = { crew: 'คอกลม', polo: 'คอปก' }
 const SHIRT_PRICES = { crew: 250, polo: 300 }
 
+function BackupTab({ onInvalidate }: { onInvalidate: () => void }) {
+  const [loading, setLoading] = useState(false)
+  const handleBackup = async () => {
+    setLoading(true)
+    try {
+      const data = await getBackupData()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `tablebooking-backup-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('ดาวน์โหลด Backup สำเร็จ')
+    } catch (e) {
+      toast.error('เกิดข้อผิดพลาด', { description: e instanceof Error ? e.message : String(e) })
+    } finally {
+      setLoading(false)
+    }
+  }
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-3 bg-blue-100 rounded-full">
+            <Database className="w-6 h-6 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-lg">Backup Database</h3>
+            <p className="text-sm text-gray-500">ส่งออกข้อมูล tables, bookings, registrations เป็นไฟล์ JSON</p>
+          </div>
+        </div>
+        <Button onClick={handleBackup} disabled={loading} className="gap-2">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+          ดาวน์โหลด Backup
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function FixDataTab({ onInvalidate }: { onInvalidate: () => void }) {
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<Awaited<ReturnType<typeof runFixData>> | null>(null)
+  const handleFix = async () => {
+    setLoading(true)
+    setResult(null)
+    try {
+      const res = await runFixData()
+      setResult(res)
+      if (res.ok) {
+        onInvalidate()
+        if (res.fixed > 0) toast.success(`ซ่อมแซมข้อมูลสำเร็จ (${res.fixed} รายการ)`)
+        else toast.success('ไม่พบความขัดแย้ง ข้อมูลสอดคล้องกันแล้ว')
+      } else toast.error(res.error || 'เกิดข้อผิดพลาด')
+    } catch (e) {
+      toast.error('เกิดข้อผิดพลาด', { description: e instanceof Error ? e.message : String(e) })
+    } finally {
+      setLoading(false)
+    }
+  }
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-3 bg-amber-100 rounded-full">
+            <Wrench className="w-6 h-6 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-lg">Fix data</h3>
+            <p className="text-sm text-gray-500">ตรวจสอบและซ่อมแซมความสัมพันธ์ tables ↔ bookings ที่ขัดแย้งหรือผิดปกติ</p>
+          </div>
+        </div>
+        <ul className="text-sm text-gray-600 list-disc list-inside mb-4 space-y-1">
+          <li>โต๊ะ BOOKED/PENDING แต่ไม่มี active booking → ปล่อยโต๊ะเป็น AVAILABLE</li>
+          <li>โต๊ะ AVAILABLE แต่มี active booking → อัปเดตโต๊ะเป็น BOOKED/PENDING</li>
+          <li>หลาย active bookings ต่อหนึ่งโต๊ะ → เหลือ 1 รายการ ที่เหลือยกเลิก</li>
+        </ul>
+        <Button onClick={handleFix} disabled={loading} variant="outline" className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wrench className="w-4 h-4" />}
+          ตรวจสอบและซ่อมแซมข้อมูล
+        </Button>
+        {result && (
+          <div className="mt-4 p-4 rounded-lg bg-gray-50 border space-y-2">
+            <p className="font-medium">
+              {result.ok ? (
+                <>แก้ไขแล้ว {result.fixed} รายการ</>
+              ) : (
+                <span className="text-red-600">{result.error}</span>
+              )}
+            </p>
+            {result.report.length > 0 && (
+              <ul className="text-sm text-gray-600 space-y-1 max-h-48 overflow-y-auto">
+                {result.report.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="shrink-0">
+                      {item.type === 'table_freed' && '🟢'}
+                      {item.type === 'table_synced' && '🔵'}
+                      {item.type === 'booking_cancelled_duplicate' && '🟠'}
+                    </span>
+                    {item.message}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function AdminDashboard() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [openDetailInEditMode, setOpenDetailInEditMode] = useState(false)
   const [memo, setMemo] = useState('')
   const [isMemoEdited, setIsMemoEdited] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
@@ -84,6 +197,14 @@ export function AdminDashboard() {
       setEditEDonationId(selectedBooking.e_donation_id || '')
     }
   }, [selectedBooking])
+
+  // เปิด dialog ในโหมดแก้ไขเมื่อคลิกปุ่ม "แก้ไข" จากการ์ด (สำหรับ BOOKED/APPROVED)
+  useEffect(() => {
+    if (selectedBooking && openDetailInEditMode) {
+      setIsEditMode(true)
+      setOpenDetailInEditMode(false)
+    }
+  }, [selectedBooking, openDetailInEditMode])
 
   const { data: pendingBookings, isLoading: isPendingLoading } = useQuery({
     queryKey: ['bookings', 'pending'],
@@ -172,7 +293,7 @@ export function AdminDashboard() {
     },
   })
 
-  const BookingCard = ({ booking, showActions = false }: { booking: Booking; showActions?: boolean }) => (
+  const BookingCard = ({ booking, showActions = false, showEditForApproved = false }: { booking: Booking; showActions?: boolean; showEditForApproved?: boolean }) => (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="flex justify-between items-start">
@@ -208,6 +329,20 @@ export function AdminDashboard() {
               <Eye className="w-4 h-4 mr-1" />
               ดูสลิป
             </Button>
+            {showEditForApproved && booking.status === 'APPROVED' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-green-300 text-green-700 hover:bg-green-50"
+                onClick={() => {
+                  setOpenDetailInEditMode(true)
+                  setSelectedBooking(booking)
+                }}
+              >
+                <Pencil className="w-4 h-4 mr-1" />
+                แก้ไข
+              </Button>
+            )}
             {showActions && (
               <>
                 <Button
@@ -259,7 +394,7 @@ export function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 lg:grid-cols-8">
           <TabsTrigger value="pending" className="gap-1 sm:gap-2">
             <Clock className="w-4 h-4" />
             <span className="hidden sm:inline">รอตรวจสอบ</span> ({pendingBookings?.length || 0})
@@ -277,6 +412,14 @@ export function AdminDashboard() {
           <TabsTrigger value="checkin" className="gap-1 sm:gap-2">
             <ScanLine className="w-4 h-4" />
             <span className="hidden sm:inline">เช็คอิน</span>
+          </TabsTrigger>
+          <TabsTrigger value="backup" className="gap-1 sm:gap-2">
+            <Database className="w-4 h-4" />
+            <span className="hidden sm:inline">Backup</span>
+          </TabsTrigger>
+          <TabsTrigger value="fixdata" className="gap-1 sm:gap-2">
+            <Wrench className="w-4 h-4" />
+            <span className="hidden sm:inline">Fix data</span>
           </TabsTrigger>
         </TabsList>
 
@@ -315,7 +458,7 @@ export function AdminDashboard() {
           ) : (
             <div className="grid gap-4">
               {allBookings?.map((booking) => (
-                <BookingCard key={booking.id} booking={booking} />
+                <BookingCard key={booking.id} booking={booking} showEditForApproved />
               ))}
             </div>
           )}
@@ -721,6 +864,25 @@ export function AdminDashboard() {
 
         <TabsContent value="checkin" className="mt-4">
           <CheckInPanel />
+        </TabsContent>
+
+        <TabsContent value="backup" className="mt-4">
+          <BackupTab
+            onInvalidate={() => {
+              queryClient.invalidateQueries({ queryKey: ['tables'] })
+              queryClient.invalidateQueries({ queryKey: ['bookings'] })
+              queryClient.invalidateQueries({ queryKey: ['registrations'] })
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="fixdata" className="mt-4">
+          <FixDataTab
+            onInvalidate={() => {
+              queryClient.invalidateQueries({ queryKey: ['tables'] })
+              queryClient.invalidateQueries({ queryKey: ['bookings'] })
+            }}
+          />
         </TabsContent>
       </Tabs>
 

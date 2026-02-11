@@ -290,27 +290,36 @@ export async function cancelBooking(bookingId: string): Promise<void> {
   if (resetError) throw resetError
 }
 
+const CANCELLED_STATUSES = ['CANCELLED', 'CANCELLED_BY_SYSTEM']
+
 // Cancel all bookings in a group (for multi-table bookings)
+// Re-fetches group from DB before update to prevent conflicts (recheck ความสัมพันธ์)
 export async function cancelBookingGroup(bookingGroupId: string): Promise<void> {
-  // Get all bookings in the group
+  // Re-fetch all bookings in the group from DB (recheck ความสัมพันธ์)
   const { data: bookings, error: getError } = await supabase
     .from('bookings')
-    .select('*')
+    .select('id, table_id, status')
     .eq('booking_group_id', bookingGroupId)
 
   if (getError) throw getError
-  if (!bookings || bookings.length === 0) throw new Error('ไม่พบการจอง')
+  if (!bookings || bookings.length === 0) throw new Error('ไม่พบการจองในกลุ่มนี้')
 
-  // Update all bookings to CANCELLED
+  const list = bookings as Pick<Booking, 'id' | 'table_id' | 'status'>[]
+  const activeBookings = list.filter(b => !CANCELLED_STATUSES.includes(b.status))
+  if (activeBookings.length === 0) throw new Error('การจองในกลุ่มนี้ถูกยกเลิกหมดแล้ว')
+
+  const bookingIds = activeBookings.map(b => b.id)
+  const tableIds = [...new Set(activeBookings.map(b => b.table_id))]
+
+  // Update only active bookings to CANCELLED (by id list)
   const { error: updateError } = await supabase
     .from('bookings')
     .update({ status: 'CANCELLED' })
-    .eq('booking_group_id', bookingGroupId)
+    .in('id', bookingIds)
 
   if (updateError) throw updateError
 
-  // Reset all tables to AVAILABLE
-  const tableIds = (bookings as Booking[]).map(b => b.table_id)
+  // Reset only tables that were linked to these bookings
   for (const tableId of tableIds) {
     const { error: resetError } = await supabase
       .from('tables')
@@ -554,4 +563,145 @@ export async function fetchRegistrations(): Promise<Registration[]> {
     ...row,
     shirt_orders: (row.shirt_orders as RegistrationShirtOrder[]) || [],
   })) as Registration[]
+}
+
+// --- Backup & Fix data (Admin) ---
+
+export interface BackupData {
+  exportedAt: string
+  tables: Table[]
+  bookings: Booking[]
+  registrations: Registration[]
+}
+
+/** ดึงข้อมูลทั้งหมดสำหรับ Backup (export เป็น JSON) */
+export async function getBackupData(): Promise<BackupData> {
+  const [tablesRes, bookingsRes, regsRes] = await Promise.all([
+    supabase.from('tables').select('*').order('id', { ascending: true }),
+    supabase.from('bookings').select('*').order('created_at', { ascending: false }),
+    supabase.from('registrations').select('*').order('created_at', { ascending: false }),
+  ])
+  if (tablesRes.error) throw tablesRes.error
+  if (bookingsRes.error) throw bookingsRes.error
+  if (regsRes.error) throw regsRes.error
+  return {
+    exportedAt: new Date().toISOString(),
+    tables: (tablesRes.data || []) as Table[],
+    bookings: (bookingsRes.data || []) as Booking[],
+    registrations: (regsRes.data || []) as Registration[],
+  }
+}
+
+export interface FixDataReportItem {
+  type: 'table_freed' | 'table_synced' | 'booking_cancelled_duplicate'
+  message: string
+  id?: string | number
+}
+
+export interface FixDataResult {
+  ok: boolean
+  fixed: number
+  report: FixDataReportItem[]
+  error?: string
+}
+
+const ACTIVE_BOOKING_STATUSES = ['PENDING_VERIFICATION', 'APPROVED']
+
+/**
+ * ตรวจสอบและซ่อมแซมความสัมพันธ์ tables ↔ bookings ที่ขัดแย้ง/ผิดปกติ
+ * - โต๊ะสถานะ BOOKED/PENDING แต่ไม่มี active booking → ปล่อยโต๊ะเป็น AVAILABLE
+ * - โต๊ะสถานะ AVAILABLE แต่มี active booking → อัปเดตโต๊ะเป็น BOOKED/PENDING
+ * - หลาย active bookings ต่อหนึ่งโต๊ะ → เหลือ 1 รายการ (เลือก APPROVED หรือเก่าสุด), ที่เหลือตั้ง CANCELLED
+ */
+export async function runFixData(): Promise<FixDataResult> {
+  const report: FixDataReportItem[] = []
+  let fixed = 0
+
+  try {
+    const { data: tables, error: tablesErr } = await supabase
+      .from('tables')
+      .select('id, status, current_queue_count')
+      .order('id', { ascending: true })
+    if (tablesErr) throw tablesErr
+
+    const { data: bookings, error: bookingsErr } = await supabase
+      .from('bookings')
+      .select('id, table_id, status, created_at')
+      .in('status', ACTIVE_BOOKING_STATUSES)
+    if (bookingsErr) throw bookingsErr
+
+    const tablesList = (tables || []) as Pick<Table, 'id' | 'status' | 'current_queue_count'>[]
+    const bookingsList = (bookings || []) as Pick<Booking, 'id' | 'table_id' | 'status' | 'created_at'>[]
+
+    const byTableId = new Map<number, typeof bookingsList>()
+    for (const b of bookingsList) {
+      const tid = b.table_id
+      if (!byTableId.has(tid)) byTableId.set(tid, [])
+      byTableId.get(tid)!.push(b)
+    }
+
+    // 1) โต๊ะที่ BOOKED/PENDING แต่ไม่มี active booking → AVAILABLE
+    for (const t of tablesList) {
+      const active = byTableId.get(t.id) || []
+      if ((t.status === 'BOOKED' || t.status === 'PENDING') && active.length === 0) {
+        const { error } = await supabase
+          .from('tables')
+          .update({ status: 'AVAILABLE', current_queue_count: 0 })
+          .eq('id', t.id)
+        if (!error) {
+          fixed++
+          report.push({ type: 'table_freed', message: `โต๊ะ ${t.id} ไม่มีการจอง active → ตั้งเป็น AVAILABLE`, id: t.id })
+        }
+      }
+    }
+
+    // 2) โต๊ะที่ AVAILABLE แต่มี active booking → BOOKED หรือ PENDING
+    for (const t of tablesList) {
+      const active = byTableId.get(t.id) || []
+      if (t.status === 'AVAILABLE' && active.length > 0) {
+        const hasPending = active.some(b => b.status === 'PENDING_VERIFICATION')
+        const newStatus = hasPending ? 'PENDING' : 'BOOKED'
+        const { error } = await supabase
+          .from('tables')
+          .update({ status: newStatus, current_queue_count: 1 })
+          .eq('id', t.id)
+        if (!error) {
+          fixed++
+          report.push({ type: 'table_synced', message: `โต๊ะ ${t.id} มีการจอง active → ตั้งเป็น ${newStatus}`, id: t.id })
+        }
+      }
+    }
+
+    // 3) หลาย active bookings ต่อหนึ่งโต๊ะ → เหลือ 1, ที่เหลือ CANCELLED
+    for (const [tableId, list] of byTableId.entries()) {
+      if (list.length <= 1) continue
+      const sorted = [...list].sort((a, b) => {
+        const aScore = a.status === 'APPROVED' ? 0 : 1
+        const bScore = b.status === 'APPROVED' ? 0 : 1
+        if (aScore !== bScore) return aScore - bScore
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      })
+      const toCancel = sorted.slice(1)
+      for (const b of toCancel) {
+        const { error } = await supabase
+          .from('bookings')
+          .update({ status: 'CANCELLED' })
+          .eq('id', b.id)
+        if (!error) {
+          fixed++
+          report.push({ type: 'booking_cancelled_duplicate', message: `ยกเลิกการจองซ้ำ โต๊ะ ${tableId} (booking ${b.id})`, id: b.id })
+        }
+      }
+      const { error: resetErr } = await supabase
+        .from('tables')
+        .update({ status: list[0].status === 'APPROVED' ? 'BOOKED' : 'PENDING', current_queue_count: 1 })
+        .eq('id', tableId)
+      if (!resetErr && toCancel.length > 0) fixed++
+    }
+
+    return { ok: true, fixed, report }
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e)
+    return { ok: false, fixed, report, error: err }
+  }
 }

@@ -13,11 +13,13 @@ interface TableGridProps {
   onTableSelect: (table: Table) => void
   /** บน desktop: เติม container ที่มี aspect-ratio ให้พอดี viewport (ไม่ scroll แนวตั้ง) */
   fitViewport?: boolean
+  /** เมื่อเป็น true (เช่น Admin) ให้คลิกโต๊ะสถานะ BOOKED เพื่อแก้ไขได้ */
+  allowClickBooked?: boolean
 }
 
-function getTableCursor(table: TableWithBooking): string {
-  // จองแล้ว (BOOKED) = ไม่ให้คลิก
-  if (table.status === 'BOOKED') return 'not-allowed'
+function getTableCursor(table: TableWithBooking, allowClickBooked?: boolean): string {
+  // จองแล้ว (BOOKED) = ให้คลิกได้เฉพาะเมื่อ allowClickBooked (Admin)
+  if (table.status === 'BOOKED') return allowClickBooked ? 'pointer' : 'not-allowed'
   // รออนุมัติ (PENDING) = ให้คลิกเพื่อแก้ไข
   if (table.status === 'PENDING' || table.current_queue_count >= 1) return 'pointer'
   // ว่าง = ให้คลิกเพื่อจอง
@@ -47,17 +49,17 @@ function isTableAvailable(table: TableWithBooking): boolean {
   return table.status === 'AVAILABLE' && table.current_queue_count === 0
 }
 
-// โต๊ะที่คลิกได้ = ว่าง หรือ รออนุมัติ (PENDING)
-function isTableClickable(table: TableWithBooking): boolean {
-  // จองแล้ว (BOOKED) = ไม่ให้คลิก
-  if (table.status === 'BOOKED') return false
+// โต๊ะที่คลิกได้ = ว่าง หรือ รออนุมัติ (PENDING) หรือ BOOKED เมื่อ allowClickBooked
+function isTableClickable(table: TableWithBooking, allowClickBooked?: boolean): boolean {
+  // จองแล้ว (BOOKED) = ให้คลิกได้เมื่อ allowClickBooked (Admin แก้ไขได้)
+  if (table.status === 'BOOKED') return !!allowClickBooked
   // รออนุมัติ (PENDING) = ให้คลิกเพื่อแก้ไข
   if (table.status === 'PENDING' || table.current_queue_count >= 1) return true
   // ว่าง = ให้คลิกเพื่อจอง
   return true
 }
 
-export function TableGrid({ onTableSelect, fitViewport }: TableGridProps) {
+export function TableGrid({ onTableSelect, fitViewport, allowClickBooked }: TableGridProps) {
   const { data: tables, isLoading, error } = useQuery({
     queryKey: ['tables'],
     queryFn: fetchTables,
@@ -120,7 +122,7 @@ export function TableGrid({ onTableSelect, fitViewport }: TableGridProps) {
               
               {/* Tables in row */}
               {row.map((table) => {
-                const clickable = isTableClickable(table)
+                const clickable = isTableClickable(table, allowClickBooked)
                 const available = isTableAvailable(table)
                 
                 return (
@@ -136,7 +138,7 @@ export function TableGrid({ onTableSelect, fitViewport }: TableGridProps) {
                       'relative group flex flex-col items-center justify-center transition-all duration-200 aspect-square min-w-0 touch-manipulation active:scale-105',
                       clickable ? 'hover:scale-110 hover:z-10 sm:hover:scale-110' : 'opacity-80'
                     )}
-                    style={{ cursor: getTableCursor(table) }}
+                    style={{ cursor: getTableCursor(table, allowClickBooked) }}
                   >
                     {/* Label - Top */}
                     <span className="text-[8px] sm:text-[10px] font-bold text-white mb-0.5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
@@ -164,7 +166,7 @@ export function TableGrid({ onTableSelect, fitViewport }: TableGridProps) {
                       'absolute -bottom-4 left-1/2 -translate-x-1/2 text-white text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 max-w-[120px] truncate',
                       available ? 'bg-green-600' : table.status === 'BOOKED' ? 'bg-gray-600' : 'bg-yellow-600'
                     )}>
-                      {available ? 'คลิกเพื่อจอง' : getStatusText(table)}
+                      {available ? 'คลิกเพื่อจอง' : table.status === 'BOOKED' && allowClickBooked ? 'คลิกเพื่อแก้ไข' : getStatusText(table)}
                     </div>
                   </button>
                 )
